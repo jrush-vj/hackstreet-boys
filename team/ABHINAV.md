@@ -10,7 +10,19 @@ sandbox that replays suspicious ones safely, and the labelled test corpus.
 
 ## Updates from Jerush (read these first, newest at the top)
 
-### 2026-10-28 — P1 integration
+### 2026-10-28 — P1 integration (G1 green, on `main`, tagged `g1-core`)
+
+**Your next steps, in order:**
+1. [ ] Get the integrated code: `git checkout feat/abhinav-p1-gateway && git fetch origin && git merge origin/main`
+       (this brings in Jerush's corpus fixes; take `main`'s version if anything conflicts).
+2. [ ] Check it runs: `docker compose down -v && docker compose up --build -d`, then
+       `docker compose run --rm gateway pytest -q` and `pytest tests/e2e -q` (G0 + G1 must stay green).
+3. [ ] Start **P2** (Part 2 below, due at G2): rate rules (A07 login burst, A06 transfer burst), path rules (A01, A02),
+       anomaly score v1, DIVERT → honeypot + fire-and-forget `POST /replay`, the real `sandbox/`, corpus items for A01/A02/A06/A07/A10.
+4. [ ] Push to your branch whenever a piece works, and tell Jerush "ready to merge". G2 checks that a DIVERT produces
+       gateway + honeypot + sandbox events with the same `correlation_id`, and that A01, A02 and A07 DENY.
+   - When you DIVERT, forward the request to the honeypot **with the same `X-Request-Id` header**; the honeypot copies it into `correlation_id`.
+
 **New git workflow** (full version: `AGENTS.md` section 6, `docs/06-git-workflow.md`):
 - You keep **one branch for the whole event**: `feat/abhinav-p1-gateway`. Don't create others.
 - Start every session with `git fetch origin && git merge origin/main`.
@@ -18,7 +30,7 @@ sandbox that replays suspicious ones safely, and the labelled test corpus.
 - **Never rebase or force-push.** Jerush merges your branch, so its history must not change.
 - Only Jerush pushes to `main`. You don't open PRs.
 
-**What happened to your P1 work:** merged into `feat/jerush-analyst-core`, then into `main`.
+**What happened to your P1 work:** merged into `feat/jerush-analyst-core`, then pushed to `main`.
 G1 passes. Your gateway tests pass 5/5. The `DeprecationWarning` comes from Starlette itself and is harmless.
 
 **Jerush changed in your folders** (merge `origin/main` before you touch these files):

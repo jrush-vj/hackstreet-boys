@@ -10,7 +10,19 @@ and the live dashboard. You also own the slides and clips.
 
 ## Updates from Jerush (read these first, newest at the top)
 
-### 2026-10-28 — P1 integration
+### 2026-10-28 — P1 integration (G1 green, on `main`, tagged `g1-core`)
+
+**Your next steps, in order:**
+1. [ ] Get the integrated code: `git checkout feat/akchhat-bank-dashboard && git fetch origin && git merge origin/main`
+       (this brings in Jerush's P0 skeleton and the fixes above; take `main`'s version if anything conflicts).
+2. [ ] Check it runs: `docker compose down -v && docker compose up --build -d`, open http://localhost:3000, then `pytest tests/e2e -q`.
+3. [ ] Clear the "Please do" list above (honeypot via `shared/`, one async Redis client, show `source` when there's no verdict, bank tests).
+4. [ ] Start **P2** (Part 2 below, due at G2): full honeypot mirror with events, and the React + Vite + TS + Tailwind dashboard
+       (`src/types.ts`, live feed over `/ws/live`, verdict colours, OWASP chips, nginx Dockerfile keeping the `resolver` lines).
+   - Design note for the React rewrite: make headings clearly bigger than body text (at least 1.25× per step).
+     It has to read on a projector at 1366×768.
+5. [ ] Push to your branch whenever a piece works, and tell Jerush "ready to merge".
+
 **New git workflow** (full version: `AGENTS.md` section 6, `docs/06-git-workflow.md`):
 - You keep **one branch for the whole event**: `feat/akchhat-bank-dashboard`. Don't create others.
 - Start every session with `git fetch origin && git merge origin/main`.
@@ -18,7 +30,7 @@ and the live dashboard. You also own the slides and clips.
 - **Never rebase or force-push.** Jerush merges your branch, so its history must not change.
 - Only Jerush pushes to `main`. You don't open PRs.
 
-**What happened to your P1 work:** merged into `feat/jerush-analyst-core`, then into `main`. G1 passes.
+**What happened to your P1 work:** merged into `feat/jerush-analyst-core`, then pushed to `main`. G1 passes.
 Your branch started before the P0 skeleton, so your files clashed with Jerush's stubs. **Your versions were kept**, except:
 - `dashboard/nginx.conf`: Jerush's version is kept. **Keep these two lines** when you replace it for the Vite build:
   `resolver 127.0.0.11 valid=10s;` and `set $analyst http://analyst:8004;` (with `proxy_pass $analyst;`).

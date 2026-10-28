@@ -19,7 +19,7 @@ You're also the only person who merges to `main`.
 ## Tasks
 
 ### P0 — Skeleton (H0–1) · gate G0
-- [ ] Push these docs to `Hackfest-X-Saividya/hackstreet-boys-t2-08`, protect `main`
+- [x] Push these docs to `Hackfest-X-Saividya/hackstreet-boys-t2-08`, protect `main`
 - [x] Folder skeleton with a `README.md` in each folder (already drafted)
 - [x] `shared/schemas.py`, `owasp.py`, `events.py`, `config.py` exactly as in design doc sections 4–6
 - [x] Stub FastAPI app in every Python service with `/health` and fixed-JSON contract endpoints
@@ -34,7 +34,7 @@ You're also the only person who merges to `main`.
 - [x] Stream consumer: consumer group on `events`, persist to Postgres, update stats
 - [x] At start: load `gateway/rules/packs/*.yaml` (mounted read-only into `analyst` by compose at `/app/packs`) → Postgres + Redis `rules:active`, publish `rules:updated`
 - [x] `/api/events`, `/api/stats`, `/api/rules`
-- [ ] `tests/e2e/test_g1.py`; merge, test, tag `g1-core`
+- [x] `tests/e2e/test_g1.py`; merge, test, tag `g1-core`
 
 ### P2 — DIVERT + infra (H6–12) · gate G2
 - [ ] `WS /ws/live` broadcasting events, rules and stats
