@@ -20,10 +20,12 @@ genuinely their decision.
 |---|---|---|
 | `shared/`, `docker-compose.yml`, `docker-compose.override.yml`, `.env.example`, `.gitignore`, `.github/`, `analyst/`, `runner/`, `mock-llm/`, `kaggle/`, `infra/`, `tests/e2e/`, `AGENTS.md`, `CLAUDE.md`, `docs/` | Jerush | No |
 | `gateway/`, `sandbox/`, `tests/corpus/` | Abhinav | No |
-| `bank/`, `honeypot/`, `dashboard/` | Akchhat | No |
+| `bank/app/main.py`, `bank/app/web.py`, `bank/app/templates/`, `bank/app/static/`, `bank/tests/` | Abhinav (VulnBank Phase B only) | No |
+| Remaining `bank/` files, `honeypot/`, `dashboard/` | Akchhat | No |
 | `team/<NAME>.md` | That person | Only to tick their own checkboxes |
 
 - Edit files **only** inside your human's folders.
+- For VulnBank Phase B, Abhinav owns only `bank/app/main.py`, `bank/app/web.py`, `bank/app/templates/`, `bank/app/static/`, and `bank/tests/`; all other `bank/` work remains Akchhat's.
 - If you need a change elsewhere (a new field in `shared/schemas.py`, a new env
   var, a compose change), **stop and write it up** as a note under
   "Requests to Jerush" in your human's `team/<NAME>.md`, or tell your human

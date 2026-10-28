@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>VulnBank — {{title}}</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <header class="site-header">
+    <a class="brand" href="/">VulnBank</a>
+    <div class="session">
+      <span>Signed in as {{user}}</span>
+      <a href="/logout">Sign out</a>
+    </div>
+  </header>
+  <nav class="site-nav" aria-label="Bank pages">{{navigation}}</nav>
+  <main>
+    {{content}}
+  </main>
+</body>
+</html>
