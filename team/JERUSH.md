@@ -30,10 +30,10 @@ You're also the only person who merges to `main`.
 - [ ] Confirm both teammates have the stack running → tag `p0-skeleton`
 
 ### P1 — Core path (H1–6) · gate G1
-- [ ] `analyst/migrations/001_init.sql` (design doc section 11); run on start
-- [ ] Stream consumer: consumer group on `events`, persist to Postgres, update stats
-- [ ] At start: load `gateway/rules/packs/*.yaml` (mounted read-only into `analyst` by compose at `/app/packs`) → Postgres + Redis `rules:active`, publish `rules:updated`
-- [ ] `/api/events`, `/api/stats`, `/api/rules`
+- [x] `analyst/migrations/001_init.sql` (design doc section 11); run on start
+- [x] Stream consumer: consumer group on `events`, persist to Postgres, update stats
+- [x] At start: load `gateway/rules/packs/*.yaml` (mounted read-only into `analyst` by compose at `/app/packs`) → Postgres + Redis `rules:active`, publish `rules:updated`
+- [x] `/api/events`, `/api/stats`, `/api/rules`
 - [ ] `tests/e2e/test_g1.py`; merge, test, tag `g1-core`
 
 ### P2 — DIVERT + infra (H6–12) · gate G2

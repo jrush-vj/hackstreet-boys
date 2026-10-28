@@ -1,16 +1,42 @@
-"""P0 stub: every contract endpoint from docs/04-system-design.md section 8 (analyst)
-returns fixed JSON. Real stream consumer, Postgres and LLM loop come in P1-P3."""
+"""Analyst: consumes `events`, persists to Postgres, owns the rules, serves the dashboard API.
+Contracts: docs/04-system-design.md sections 6, 8 (analyst), 9, 11.
+P1: events, stats, rules are real. /analyze, timers, scenario and /ws/live are still P0 stubs."""
 
 import asyncio
 import uuid
+from contextlib import asynccontextmanager
+from datetime import datetime
+from pathlib import Path
 
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+import asyncpg
+import redis.asyncio as aioredis
+from fastapi import FastAPI, HTTPException, Query, Request, WebSocket, WebSocketDisconnect
+from pydantic import BaseModel
 
-from shared.config import settings  # noqa: F401  proves shared/ is wired in
+from shared.config import settings
 from shared.owasp import OWASP_2025
 from shared.schemas import Event, Rule
 
-app = FastAPI(title="analyst")
+from app import consumer, store
+
+PACKS_DIR = Path("/app/packs")  # gateway/rules/packs, mounted read-only by compose
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    app.state.pool = await asyncpg.create_pool(settings.database_url, min_size=1, max_size=5)
+    app.state.redis = aioredis.from_url(settings.redis_url, decode_responses=True)
+    await store.migrate(app.state.pool)
+    await store.load_packs(app.state.pool, app.state.redis, PACKS_DIR)
+    task = asyncio.create_task(consumer.run(app.state.pool, app.state.redis))
+    store.log("analyst started", llm_mode=settings.llm_mode)
+    yield
+    task.cancel()
+    await app.state.redis.aclose()
+    await app.state.pool.close()
+
+
+app = FastAPI(title="analyst", lifespan=lifespan)
 
 
 @app.get("/health")
@@ -24,27 +50,32 @@ def analyze(event: Event):
 
 
 @app.get("/api/events", response_model=list[Event])
-def events(since: str | None = None, limit: int = 100):
-    return []
+async def events(request: Request, since: datetime | None = None,
+                 limit: int = Query(100, ge=1, le=1000)):
+    return await store.list_events(request.app.state.pool, since, limit)
 
 
 @app.get("/api/rules", response_model=list[Rule])
-def rules():
-    return []
+async def rules(request: Request):
+    return await store.list_rules(request.app.state.pool)
 
 
-@app.patch("/api/rules/{rule_id}")
-def patch_rule(rule_id: str, body: dict):
-    return {"id": rule_id, "enabled": bool(body.get("enabled", True))}
+class RulePatch(BaseModel):
+    enabled: bool
+
+
+@app.patch("/api/rules/{rule_id}", response_model=Rule)
+async def patch_rule(rule_id: str, body: RulePatch, request: Request):
+    rule = await store.set_enabled(request.app.state.pool, rule_id, body.enabled)
+    if rule is None:
+        raise HTTPException(404, f"no rule {rule_id}")
+    await store.publish_rule(request.app.state.redis, rule)
+    return rule
 
 
 @app.get("/api/stats")
-def stats():
-    return {
-        "totals": {"SAFE": 0, "DIVERT": 0, "DENY": 0},
-        "owasp": {k: {"DIVERT": 0, "DENY": 0} for k in OWASP_2025},
-        "learned_rules": 0,
-    }
+async def stats(request: Request):
+    return await store.stats(request.app.state.pool, OWASP_2025)
 
 
 @app.get("/api/timers")
@@ -61,7 +92,7 @@ def scenario_run(body: dict):
 async def live(ws: WebSocket):
     await ws.accept()
     try:
-        await ws.send_json({"type": "stats", "data": stats()})
+        await ws.send_json({"type": "stats", "data": await store.stats(ws.app.state.pool, OWASP_2025)})
         while True:
             await asyncio.sleep(30)
     except WebSocketDisconnect:

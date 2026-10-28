@@ -117,6 +117,10 @@ Stored in Postgres `rules` and mirrored to Redis hash `rules:active` (field = id
 Rule packs are loaded by `analyst` at start from `gateway/rules/packs/*.yaml`, so even pack rules flow
 through the same path.
 
+- `rules:active` holds **enabled rules only**. Disabling a rule removes it from the hash.
+- The `rules:updated` message is a rule id, or `*` after a full reload (analyst start). Either way the
+  gateway should just reload the whole hash.
+
 ```python
 class Rule(BaseModel):
     id: str                        # pack: "sqli-001"; learned: "L-" + 8 hex
