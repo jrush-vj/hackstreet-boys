@@ -1,0 +1,24 @@
+# Dev only (auto-loaded by `docker compose up`). Publishes internal services on 127.0.0.1
+# and attaches them to `edge`, because Docker can't publish ports on an internal-only network.
+# The homelab skips this file: docker compose -f docker-compose.yml up -d
+
+services:
+  sandbox:
+    ports: ["127.0.0.1:8003:8003"]
+    networks: [edge, internal]
+  bank:
+    ports: ["127.0.0.1:8001:8001"]
+    networks: [edge, internal]
+  honeypot:
+    ports: ["127.0.0.1:8002:8002"]
+    networks: [edge, internal]
+  analyst:
+    ports: ["127.0.0.1:8004:8004"]
+  runner:
+    ports: ["127.0.0.1:8005:8005"]
+  redis:
+    ports: ["127.0.0.1:6379:6379"]
+    networks: [edge, internal]
+  postgres:
+    ports: ["127.0.0.1:5432:5432"]
+    networks: [edge, internal]

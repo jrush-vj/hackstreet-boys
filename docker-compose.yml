@@ -1,0 +1,120 @@
+# Production/demo compose. Only gateway and dashboard are published.
+# Dev ports live in docker-compose.override.yml (auto-loaded). Homelab: docker compose -f docker-compose.yml up -d
+
+x-py: &py
+  env_file: .env
+  restart: unless-stopped
+  mem_limit: 512m
+
+networks:
+  edge: {}
+  internal:
+    internal: true  # no internet for the bank side. Do not change.
+
+volumes:
+  pgdata: {}
+
+services:
+  gateway:
+    <<: *py
+    build: { context: ., dockerfile: gateway/Dockerfile }
+    ports: ["8000:8000"]
+    networks: [edge, internal]
+    healthcheck: &hc
+      test: ["CMD", "python", "-c", "import os,urllib.request;urllib.request.urlopen(f'http://localhost:{os.environ[\"PORT\"]}/health')"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    depends_on: [redis]
+
+  sandbox:
+    <<: *py
+    build: { context: ., dockerfile: sandbox/Dockerfile }
+    networks: [internal]
+    healthcheck: *hc
+    depends_on: [redis, bank-sandbox]
+
+  bank:
+    <<: *py
+    build: { context: ., dockerfile: bank/Dockerfile }
+    mem_limit: 256m
+    networks: [internal]
+    healthcheck: *hc
+
+  bank-sandbox:
+    <<: *py
+    build: { context: ., dockerfile: bank/Dockerfile }
+    mem_limit: 256m
+    networks: [internal]
+    healthcheck: *hc
+
+  honeypot:
+    <<: *py
+    build: { context: ., dockerfile: honeypot/Dockerfile }
+    mem_limit: 256m
+    networks: [internal]
+    healthcheck: *hc
+    depends_on: [redis]
+
+  analyst:
+    <<: *py
+    build: { context: ., dockerfile: analyst/Dockerfile }
+    networks: [edge, internal]
+    healthcheck: *hc
+    volumes:
+      - ./gateway/rules/packs:/app/packs:ro
+    depends_on:
+      redis: { condition: service_healthy }
+      postgres: { condition: service_healthy }
+
+  runner:
+    <<: *py
+    build: { context: ., dockerfile: runner/Dockerfile }
+    networks: [edge]
+    healthcheck: *hc
+    volumes:
+      - ./tests/corpus:/app/corpus:ro
+
+  mock-llm:
+    <<: *py
+    build: { context: ., dockerfile: mock-llm/Dockerfile }
+    mem_limit: 256m
+    networks: [edge]
+    healthcheck: *hc
+
+  dashboard:
+    build: { context: ., dockerfile: dashboard/Dockerfile }
+    restart: unless-stopped
+    mem_limit: 256m
+    ports: ["3000:3000"]
+    networks: [edge]
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3000/health"]
+      interval: 10s
+      retries: 5
+    depends_on: [analyst]
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    mem_limit: 256m
+    networks: [internal]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      retries: 10
+
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    mem_limit: 512m
+    networks: [internal]
+    environment:
+      POSTGRES_USER: sphere
+      POSTGRES_PASSWORD: sphere
+      POSTGRES_DB: sphere
+    volumes: [pgdata:/var/lib/postgresql/data]
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "sphere"]
+      interval: 5s
+      retries: 10

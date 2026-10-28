@@ -1,0 +1,14 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><title>Secure Sphere</title></head>
+<body style="font-family:system-ui;background:#0b0f14;color:#e6edf3;padding:2rem">
+  <h1>Secure Sphere dashboard</h1>
+  <p>P0 placeholder. Analyst stats via <code>/api/stats</code>:</p>
+  <pre id="stats">loading…</pre>
+  <script>
+    fetch("/api/stats").then(r => r.json())
+      .then(d => document.getElementById("stats").textContent = JSON.stringify(d, null, 2))
+      .catch(e => document.getElementById("stats").textContent = "analyst unreachable: " + e);
+  </script>
+</body>
+</html>

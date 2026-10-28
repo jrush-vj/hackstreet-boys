@@ -1,0 +1,14 @@
+.env
+*.db
+*.sqlite3
+*.gguf
+node_modules/
+dist/
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+.venv/
+.vscode/
+.idea/
+.DS_Store

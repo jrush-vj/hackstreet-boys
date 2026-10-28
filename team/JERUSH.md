@@ -20,13 +20,13 @@ You're also the only person who merges to `main`.
 
 ### P0 — Skeleton (H0–1) · gate G0
 - [ ] Push these docs to `Hackfest-X-Saividya/hackstreet-boys-t2-08`, protect `main`
-- [ ] Folder skeleton with a `README.md` in each folder (already drafted)
-- [ ] `shared/schemas.py`, `owasp.py`, `events.py`, `config.py` exactly as in design doc sections 4–6
-- [ ] Stub FastAPI app in every Python service with `/health` and fixed-JSON contract endpoints
-- [ ] Placeholder dashboard (static nginx page) so port 3000 answers
-- [ ] `mock-llm` with canned `RuleProposal`s per OWASP id
-- [ ] `docker-compose.yml` (networks `edge` + `internal` with `internal: true`, memory limits, health checks), `docker-compose.override.yml` (dev ports + edge attach), `.env.example`, `.gitignore`
-- [ ] `.github/CODEOWNERS` `.github/pull_request_template.md`
+- [x] Folder skeleton with a `README.md` in each folder (already drafted)
+- [x] `shared/schemas.py`, `owasp.py`, `events.py`, `config.py` exactly as in design doc sections 4–6
+- [x] Stub FastAPI app in every Python service with `/health` and fixed-JSON contract endpoints
+- [x] Placeholder dashboard (static nginx page) so port 3000 answers
+- [x] `mock-llm` with canned `RuleProposal`s per OWASP id
+- [x] `docker-compose.yml` (networks `edge` + `internal` with `internal: true`, memory limits, health checks), `docker-compose.override.yml` (dev ports + edge attach), `.env.example`, `.gitignore`
+- [x] `.github/CODEOWNERS` `.github/pull_request_template.md`
 - [ ] Confirm both teammates have the stack running → tag `p0-skeleton`
 
 ### P1 — Core path (H1–6) · gate G1
