@@ -4,6 +4,11 @@
 /sandbox/               @AbhiNav-S-Biju
 /tests/corpus/          @AbhiNav-S-Biju
 /bank/                  @AkchhatGrg
+/bank/app/main.py       @AbhiNav-S-Biju
+/bank/app/web.py        @AbhiNav-S-Biju
+/bank/app/templates/    @AbhiNav-S-Biju
+/bank/app/static/       @AbhiNav-S-Biju
+/bank/tests/            @AbhiNav-S-Biju
 /honeypot/              @AkchhatGrg
 /dashboard/             @AkchhatGrg
 /team/ABHINAV.md        @AbhiNav-S-Biju

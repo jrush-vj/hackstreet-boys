@@ -1,0 +1,17 @@
+<section class="card narrow">
+  <h1>Search transactions</h1>
+  <form action="/api/transactions/search" method="get">
+    <label for="query">Search description</label>
+    <input id="query" name="q" value="{{query}}" type="search">
+    <button type="submit">Search</button>
+  </form>
+</section>
+<section class="card">
+  <h2>Results</h2>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>ID</th><th>Date</th><th>Description</th><th>Amount</th><th>Memo</th></tr></thead>
+      <tbody>{{rows}}</tbody>
+    </table>
+  </div>
+</section>

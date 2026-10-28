@@ -1,0 +1,9 @@
+<section class="card narrow">
+  <h1>Fetch a statement</h1>
+  {{result}}
+  <form action="/api/statements/fetch" method="get">
+    <label for="statement-url">Statement URL</label>
+    <input id="statement-url" name="url" type="url" value="{{url}}" required>
+    <button type="submit">Fetch statement</button>
+  </form>
+</section>
