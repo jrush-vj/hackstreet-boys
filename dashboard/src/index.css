@@ -112,12 +112,13 @@ button { cursor: pointer; }
 .muted { margin: 0; color: #77716a; font-size: .8rem; }
 .timer-card { display: flex; align-items: baseline; gap: 8px; margin: 6px 0; }
 .timer-card strong { color: #9a5c08; font-size: 1.75rem; }
-.timer-card span { font-family: ui-monospace, monospace; font-size: .73rem; }
+.timer-card span { font-size: .73rem; }
 .rules-section { overflow: hidden; }
-.rule-row { display: flex; justify-content: space-between; width: 100%; border-bottom: 1px solid #e1ddd5; border-radius: 6px; padding: 7px 8px; background: #fff; color: #756f67; font-family: ui-monospace, monospace; font-size: .7rem; text-align: left; }
+.rule-row { display: flex; justify-content: space-between; width: 100%; border-bottom: 1px solid #e1ddd5; border-radius: 6px; padding: 7px 8px; background: #fff; color: #756f67; font-size: .7rem; text-align: left; }
 .rule-row:hover { transform: none; box-shadow: none; background: #f0eadf; }
 .rule-row b { color: #9b322b; }
 .rule-row.enabled { color: #2e2a26; }
+.font-mono { font-family: inherit; }
 .rule-row.enabled b { color: #24744a; }
 
 @media (max-width: 1000px) {
