@@ -1,0 +1,73 @@
+id       owasp  expected  got       rule
+c-0021   A05    DENY      DENY      sqli-001
+c-0022   A05    DENY      DENY      sqli-002
+c-0023   A05    DENY      DENY      sqli-003
+c-0024   A05    DENY      DENY      sqli-004
+c-0025   A05    DENY      DENY      sqli-005
+c-0026   A05    DENY      DENY      sqli-005
+c-0027   A05    DENY      DENY      sqli-001
+c-0028   A05    DENY      DENY      prompt-001
+c-0029   A05    DENY      DENY      prompt-002
+c-0030   A05    DENY      DENY      prompt-003
+c-0031   A05    DENY      DENY      prompt-004
+c-0032   A05    DENY      DENY      prompt-005
+c-0033   A05    DENY      DENY      prompt-003
+c-0034   A05    DENY      DENY      logi-001
+c-0035   A05    DENY      DENY      logi-002
+c-0036   A05    DENY      DENY      logi-003
+c-0037   A05    DENY      DENY      logi-004
+c-0038   A05    DENY      DENY      logi-005
+c-0039   A05    DENY      DENY      logi-001
+c-0040   A05    DENY      DENY      sqli-005
+c-0049   A01    DENY      DENY      access-003
+c-0050   A01    DENY      DENY      access-003
+c-0051   A02    DENY      DENY      access-001
+c-0052   A02    DENY      DENY      access-002
+c-0053   A06    DIVERT    DIVERT    
+c-0054   A07    DIVERT    DIVERT    
+c-0055   A10    DIVERT    DIVERT    
+c-0056   A07    SAFE      SAFE      
+c-0057   A07    SAFE      SAFE      
+c-0058   A07    SAFE      SAFE      
+c-0059   A07    SAFE      SAFE      
+c-0060   A07    DENY      DENY      rate-001
+c-0061   A07    DENY      DENY      rate-001
+c-0062   A06    DIVERT    DIVERT    
+c-0063   A06    DENY      SAFE        <-- differs
+c-0064   A06    DENY      SAFE        <-- differs
+c-0065   A06    DENY      SAFE        <-- differs
+c-0066   A10    DIVERT    DIVERT    
+c-0067   A05    DENY      DENY      sqli-006
+c-0068   A05    DENY      DENY      sqli-007
+c-0069   A05    DENY      DENY      sqli-008
+c-0070   A05    DENY      DENY      sqli-009
+c-0071   A05    DENY      DENY      sqli-010
+c-0072   A05    DENY      DENY      sqli-011
+c-0073   A05    DENY      DENY      sqli-012
+c-0074   A05    DIVERT    DIVERT    
+c-0075   A05    DIVERT    DIVERT    
+c-0076   A05    DIVERT    DIVERT    
+c-0077   A05    DIVERT    DIVERT    
+c-0078   A05    DENY      DENY      prompt-006
+c-0079   A05    DENY      DENY      prompt-007
+c-0080   A05    DENY      DENY      prompt-008
+c-0081   A05    DENY      DENY      prompt-009
+c-0082   A05    DENY      DENY      prompt-010
+c-0083   A05    DENY      DENY      prompt-011
+c-0087   A05    DENY      DENY      logi-006
+c-0088   A05    DENY      DENY      logi-007
+c-0089   A05    DENY      DENY      logi-008
+c-0090   A05    DENY      DENY      logi-009
+c-0091   A05    DENY      DENY      logi-010
+
+summary (OWASP, verdict): count
+  ('A01', 'DENY'): 2
+  ('A02', 'DENY'): 2
+  ('A05', 'DENY'): 38
+  ('A05', 'DIVERT'): 4
+  ('A06', 'DIVERT'): 2
+  ('A06', 'SAFE'): 3
+  ('A07', 'DENY'): 2
+  ('A07', 'DIVERT'): 1
+  ('A07', 'SAFE'): 4
+  ('A10', 'DIVERT'): 2

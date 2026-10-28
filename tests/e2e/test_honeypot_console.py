@@ -73,3 +73,9 @@ def test_live_console_feed():
 
     ev = asyncio.run(go())
     assert ev["payload"].startswith("/api/accounts/2")
+
+
+def test_llm_settings_need_the_admin_token():
+    assert httpx.get(f"{UI}/api/hp/llm/config").status_code == 401
+    ok = httpx.get(f"{UI}/api/hp/llm/config", headers=ADMIN)
+    assert ok.status_code == 200 and "base_url" in ok.json()

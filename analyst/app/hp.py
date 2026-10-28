@@ -317,7 +317,8 @@ async def hp_llm_status(request: Request):
 
 
 @router.get("/api/hp/llm/config")
-async def hp_llm_config(request: Request):
+async def hp_llm_config(request: Request, x_admin_token: str | None = Header(None)):
+    require_admin(x_admin_token)  # the model URL is internal: only the admin may read it
     cfg = await _llm_cfg(request.app.state.redis)
     key = cfg["api_key"]
     return {**cfg, "api_key": (key[:4] + "…" + key[-2:]) if len(key) > 8 else ("set" if key else "")}

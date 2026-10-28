@@ -94,7 +94,7 @@ services:
     build: { context: ., dockerfile: dashboard/Dockerfile }
     restart: unless-stopped
     mem_limit: 256m
-    ports: ["3000:3000"]
+    ports: ["127.0.0.1:3000:3000"]  # localhost only: the graph tunnel reaches it, the LAN does not
     networks: [edge]
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3000/health"]

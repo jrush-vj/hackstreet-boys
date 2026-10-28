@@ -657,7 +657,7 @@ async function refreshLLM() {
 }
 function openGear() {
   $("f-token").value = localStorage.getItem("st_admin_token") || "";
-  api("/api/llm/config").then((c) => {
+  api("/api/llm/config", { headers: adminHeaders() }).then((c) => {
     $("f-url").value = c.base_url || "";
     $("f-key").value = "";
     $("f-key").placeholder = c.api_key ? `keep current (${c.api_key})` : "API key";
