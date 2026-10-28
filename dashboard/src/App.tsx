@@ -12,6 +12,15 @@ import {
 } from "./types";
 
 const FEED_MAX = 100;
+const SCENARIO_STEPS = [
+  { key: "normal", label: "Normal traffic" },
+  { key: "rule", label: "Rule packs" },
+  { key: "access", label: "Access + config" },
+  { key: "login", label: "Login burst" },
+  { key: "zero-day", label: "Zero-day moment" },
+  { key: "error", label: "Error handling" },
+  { key: "wrap-up", label: "Wrap-up" },
+] as const;
 const VERDICT_STYLE: Record<Verdict, string> = {
   SAFE: "border-emerald-500 bg-emerald-500/10",
   DIVERT: "border-amber-400 bg-amber-400/10",
@@ -36,6 +45,9 @@ export default function App() {
   const [timers, setTimers] = useState<Timer[]>([]);
   const [live, setLive] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [scenarioRunId, setScenarioRunId] = useState<string | null>(null);
+  const [scenarioStep, setScenarioStep] = useState(-1);
+  const [scenarioRunning, setScenarioRunning] = useState(false);
 
   useEffect(() => {
     const refreshTimers = () => {
@@ -89,6 +101,33 @@ export default function App() {
     };
   }, []);
 
+  useEffect(() => {
+    if (!scenarioRunning) return;
+    let closed = false;
+    const refreshScenario = async () => {
+      try {
+        const recent = await getJson<Event[]>(`/api/events?limit=${FEED_MAX}`);
+        const completed = recent.reduce((highest, event) => {
+          const step = event.scenario_step?.toLowerCase() ?? "";
+          const index = SCENARIO_STEPS.findIndex(({ key, label }) => step.includes(key) || step.includes(label.toLowerCase()));
+          return Math.max(highest, index);
+        }, -1);
+        if (closed || completed < 0) return;
+        const nextStep = Math.min(completed + 1, SCENARIO_STEPS.length);
+        setScenarioStep(nextStep);
+        if (nextStep === SCENARIO_STEPS.length) setScenarioRunning(false);
+      } catch (e) {
+        if (!closed) setError(e instanceof Error ? e.message : "Unable to read scenario progress");
+      }
+    };
+    refreshScenario();
+    const progressRefresh = window.setInterval(refreshScenario, 1000);
+    return () => {
+      closed = true;
+      window.clearInterval(progressRefresh);
+    };
+  }, [scenarioRunning]);
+
   const toggle = async (rule: Rule) => {
     const r = await fetch(`/api/rules/${encodeURIComponent(rule.id)}`, {
       method: "PATCH",
@@ -99,14 +138,37 @@ export default function App() {
     // the analyst pushes the updated rule over /ws/live
   };
 
+  const runScenario = async () => {
+    setError(null);
+    setScenarioRunning(true);
+    setScenarioRunId(null);
+    setScenarioStep(0);
+    try {
+      const response = await fetch("/api/scenario/run", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ scenario: "full" }),
+      });
+      if (!response.ok) throw new Error(`/api/scenario/run → ${response.status}`);
+      const result = (await response.json()) as { run_id: string };
+      setScenarioRunId(result.run_id);
+    } catch (e) {
+      setScenarioRunning(false);
+      setError(e instanceof Error ? e.message : "Unable to start scenario");
+    }
+  };
+
   return (
     <div className="min-h-screen">
-      <header className="flex items-center justify-between border-b border-slate-800 px-6 py-4">
+      <header className="flex items-center justify-between border-b border-slate-800 px-6 py-5">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Secure Sphere</h1>
-          <p className="text-base text-slate-400">Zero-day detection gateway · OWASP Top 10:2025</p>
+          <h1 className="text-4xl font-bold tracking-tight">Secure Sphere</h1>
+          <p className="text-lg text-slate-400">Zero-day detection gateway · OWASP Top 10:2025</p>
         </div>
         <div className="flex items-center gap-3">
+          <a href="/slides/" className="rounded-md bg-sky-500/20 px-3 py-2 text-sm font-semibold text-sky-200 hover:bg-sky-500/30">
+            Demo slides →
+          </a>
           <a href="/honeypot/" className="rounded-md bg-amber-500/20 px-3 py-1 text-sm font-semibold text-amber-200 hover:bg-amber-500/30">
             Honeypot console →
           </a>
@@ -118,9 +180,39 @@ export default function App() {
 
       {error && <p className="bg-red-900/40 px-6 py-2 text-red-200">Analyst unreachable: {error}</p>}
 
-      <main className="grid gap-4 p-4 lg:grid-cols-[3fr_2fr]">
+      <section className="mx-4 mt-4 rounded-lg border border-sky-800 bg-sky-950/40 p-4">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h2 className="text-2xl font-semibold">Demo scenario</h2>
+            <p className="text-base text-slate-300">
+              {scenarioRunId ? `Run ${scenarioRunId}` : "Play the seven-step judge-facing flow"}
+            </p>
+          </div>
+          <button
+            onClick={runScenario}
+            disabled={scenarioRunning}
+            className="rounded-md bg-sky-500 px-5 py-3 text-base font-bold text-slate-950 transition hover:bg-sky-400 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {scenarioRunning ? "Scenario running…" : "Run scenario"}
+          </button>
+        </div>
+        <ol className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7">
+          {SCENARIO_STEPS.map((step, index) => {
+            const complete = scenarioStep > index;
+            const active = scenarioRunning && scenarioStep === index;
+            return (
+              <li key={step.key} className={`rounded-md border px-3 py-2 text-sm ${complete ? "border-emerald-500 bg-emerald-500/15 text-emerald-200" : active ? "border-sky-400 bg-sky-400/15 text-sky-100" : "border-slate-700 bg-slate-900/60 text-slate-400"}`}>
+                <span className="mr-2 font-mono font-bold">{complete ? "✓" : `${index + 1}`}</span>
+                {step.label}
+              </li>
+            );
+          })}
+        </ol>
+      </section>
+
+      <main className="grid gap-5 p-4 lg:grid-cols-[3fr_2fr]">
         <section className="rounded-lg border border-slate-800 bg-slate-900 p-4">
-          <h2 className="mb-3 text-xl font-semibold">Live feed</h2>
+          <h2 className="mb-3 text-2xl font-semibold">Live feed</h2>
           <ol className="max-h-[75vh] space-y-2 overflow-y-auto pr-1">
             {events.length === 0 && <li className="text-slate-400">Waiting for traffic…</li>}
             {events.map((e) => (
@@ -131,7 +223,7 @@ export default function App() {
 
         <aside className="space-y-4">
           <section className="rounded-lg border border-slate-800 bg-slate-900 p-4">
-            <h2 className="mb-3 text-xl font-semibold">Totals</h2>
+            <h2 className="mb-3 text-2xl font-semibold">Totals</h2>
             <div className="grid grid-cols-3 gap-2">
               {(["SAFE", "DIVERT", "DENY"] as Verdict[]).map((v) => (
                 <div key={v} className={`rounded-md border-l-4 p-3 ${VERDICT_STYLE[v]}`}>
@@ -143,7 +235,7 @@ export default function App() {
           </section>
 
           <section className="rounded-lg border border-slate-800 bg-slate-900 p-4">
-            <h2 className="mb-3 text-xl font-semibold">OWASP Top 10:2025</h2>
+            <h2 className="mb-3 text-2xl font-semibold">OWASP Top 10:2025</h2>
             <div className="grid grid-cols-2 gap-2 xl:grid-cols-5">
               {(Object.keys(OWASP_2025) as OwaspId[]).map((id) => (
                 <OwaspTile key={id} id={id} counts={stats?.owasp[id]} />
@@ -152,7 +244,7 @@ export default function App() {
           </section>
 
           <section className="rounded-lg border border-slate-800 bg-slate-900 p-4">
-            <h2 className="mb-3 text-xl font-semibold">
+            <h2 className="mb-3 text-2xl font-semibold">
               Rules <span className="text-base font-normal text-slate-400">({stats?.learned_rules ?? 0} learned)</span>
             </h2>
             <ul className="max-h-64 divide-y divide-slate-800 overflow-y-auto">
@@ -177,7 +269,7 @@ export default function App() {
           </section>
 
           <section className="rounded-lg border border-slate-800 bg-slate-900 p-4">
-            <h2 className="mb-3 text-xl font-semibold">First seen → blocked</h2>
+            <h2 className="mb-3 text-2xl font-semibold">First seen → blocked</h2>
             {timers.length === 0 ? (
               <p className="text-slate-400">No learned rule has blocked yet.</p>
             ) : (

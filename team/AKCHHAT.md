@@ -36,20 +36,21 @@ State: `main` has everyone's P1 + P2 + P3 and is tagged `g3-learning`. 30/30 e2e
   `GET /api/accounts/<non-number>` triggers it. Tests: `bank/tests` (7), `honeypot/tests` (5).
 
 **Do now, in order (P4, due at G4 = feature freeze):**
-1. [ ] Merge `origin/main` (standing rules). **Your branch is behind `main`, so do this before editing anything.** Then
+1. [x] Merge `origin/main` (standing rules). Then
        `docker compose down -v && docker compose up --build -d` and `pytest tests/e2e -q`: **30 pass**.
        Look at both dashboards: http://localhost:3000 (React, yours) and http://localhost:3000/honeypot/ (sentinel-trap replica).
 2. [x] Scoreboard, rules panel with toggle, totals bar (P3, done).
-3. [ ] P3 leftover: make the "first seen → blocked" timer the big moment. `/api/timers` is live: after the zero-day step it
+3. [x] P3 leftover: make the "first seen → blocked" timer the big moment. `/api/timers` is live: after the zero-day step it
        returns e.g. `{"rule_id": "L-…", "owasp": "A06", "seconds": 0.9, …}`.
-4. [ ] Projector polish for both dashboards at 1366×768: big type, high contrast, headings at least 1.25× the body size.
+4. [x] Projector polish for both dashboards at 1366×768: big type, high contrast, headings at least 1.25× the body size.
        The honeypot console has a presentation mode (press **P**). Restyle `dashboard/public/honeypot/style.css` if needed,
        but keep its HTML ids, because `app.js` uses them.
-5. [ ] Run-scenario button → `POST /api/scenario/run {"scenario":"full"}` (returns `run_id`) with per-step progress.
+5. [x] Run-scenario button → `POST /api/scenario/run {"scenario":"full"}` (returns `run_id`) with per-step progress.
        Jerush wires the runner and a progress endpoint in P4; until then the call returns a stub `run_id`.
 6. [ ] Slide deck (problem → three verdicts → architecture → OWASP coverage → live demo → results) and the 3 clips
-       (A03 dependency scan, A04 plain-HTTP login, A08 tampered token). Start these early.
-7. [ ] Prepare your speaking part: step 1 of the demo and the slide intro.
+       (A03 dependency scan, A04 plain-HTTP login, A08 tampered token). The deck is ready at `/slides/`; the clips
+       still require screen recording.
+7. [x] Prepare your speaking part: step 1 of the demo and the slide intro.
 
 ### History (all done, kept for reference: what Jerush changed in your files and why)
 
@@ -227,15 +228,15 @@ Tick boxes as you go (this file is the one place outside your folders you may ed
 ### P3 — Scoreboard + timer (H12–18) · due at G3
 - [x] OWASP scoreboard: 10 tiles (A01–A10 with names from the design doc). A tile lights up when it has a DIVERT or DENY. A03, A04 and A08 are marked "on slide". (React dashboard)
 - [x] Rules panel: list from `/api/rules`, with learned rules highlighted and an enable/disable toggle (`PATCH`)
-- [ ] "First seen → blocked" timer from `/api/timers`. Big number, shown when a learned rule first blocks.
+- [x] "First seen → blocked" timer from `/api/timers`. Big number, shown when a learned rule first blocks.
 - [x] Totals bar: SAFE / DIVERT / DENY counts from `/api/stats`
 
 ### P4 — Demo polish (H18–22) · due at G4 (feature freeze)
-- [ ] Run scenario button → `POST /api/scenario/run`, with a progress indicator per step
-- [ ] Layout readable on a projector: big type, high contrast, works at 1366×768
-- [ ] Slide deck (problem → three verdicts → architecture → OWASP coverage → live demo → results)
+- [x] Run scenario button → `POST /api/scenario/run`, with a progress indicator per step
+- [x] Layout readable on a projector: big type, high contrast, works at 1366×768
+- [x] Slide deck (problem → three verdicts → architecture → OWASP coverage → live demo → results) at `dashboard/public/slides/`
 - [ ] 3 short screen-recorded clips: A03 dependency scan result, A04 plain-HTTP login flagged, A08 tampered token rejected
-- [ ] Prepare your speaking part: step 1 of the demo and the slide intro
+- [x] Prepare your speaking part: step 1 of the demo and the slide intro
 
 ---
 
@@ -261,3 +262,12 @@ _Write requests here (date, what, why). The owner makes the change._
   `GET /api/timers` as `list[Timer]`, calculating
   `first_seen → first_blocked` for each learned rule that has blocked at least
   once. The existing dashboard is ready to render the response.
+- 2026-10-29 — P4 dashboard work is ready: scenario POST control with event-driven
+  progress, projector styling, and a printable slide deck at `/slides/`. Jerush
+  still owns runner wiring and the three screen recordings remain to be captured.
+
+Speaking notes: Open with the contrast between a request that safely reaches the
+bank and suspicious traffic that is contained without touching real customer data.
+Click Run scenario, call out the green SAFE totals and ten OWASP tiles, then hand
+to Abhinav for rule-pack DENY examples. Return for the wrap-up: the dashboard makes
+the path from first signal to learned block visible.

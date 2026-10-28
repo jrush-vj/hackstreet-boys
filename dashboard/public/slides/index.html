@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Secure Sphere — Demo deck</title>
+    <style>
+      :root { color-scheme: dark; font-family: system-ui, sans-serif; }
+      body { margin: 0; background: #020617; color: #e2e8f0; }
+      main { min-height: 100vh; display: grid; place-items: center; padding: 3rem; box-sizing: border-box; }
+      .deck { width: min(1100px, 100%); }
+      section { min-height: 55vh; display: grid; align-content: center; gap: 1.25rem; }
+      section + section { border-top: 1px solid #334155; }
+      h1 { font-size: clamp(3rem, 8vw, 7rem); line-height: .95; margin: 0; color: #f8fafc; }
+      h2 { font-size: clamp(2rem, 5vw, 4rem); margin: 0; color: #7dd3fc; }
+      p, li { font-size: clamp(1.25rem, 2.4vw, 2rem); line-height: 1.4; }
+      ul { margin: 0; padding-left: 1.5em; }
+      .tag { color: #fbbf24; font-weight: 700; text-transform: uppercase; letter-spacing: .12em; }
+      .verdicts { display: flex; flex-wrap: wrap; gap: 1rem; }
+      .verdicts strong { padding: .8rem 1.2rem; border-radius: .5rem; }
+      .safe { background: #064e3b; color: #a7f3d0; }
+      .divert { background: #78350f; color: #fde68a; }
+      .deny { background: #7f1d1d; color: #fecaca; }
+      nav { position: fixed; right: 1rem; bottom: 1rem; color: #94a3b8; }
+      @media print { section { min-height: 90vh; page-break-after: always; } nav { display: none; } }
+    </style>
+  </head>
+  <body>
+    <main>
+      <div class="deck">
+        <section>
+          <div class="tag">Hackstreet Boys · Defense demo</div>
+          <h1>Secure Sphere</h1>
+          <p>Detect, divert, and learn from zero-day abuse before it reaches the real bank.</p>
+        </section>
+        <section>
+          <h2>The problem</h2>
+          <ul>
+            <li>Static rules miss new abuse patterns.</li>
+            <li>Attack traffic still needs a safe, observable destination.</li>
+            <li>Defenders need a short path from first signal to first block.</li>
+          </ul>
+        </section>
+        <section>
+          <h2>Three verdicts</h2>
+          <div class="verdicts">
+            <strong class="safe">SAFE → real bank</strong>
+            <strong class="divert">DIVERT → honeypot + learning</strong>
+            <strong class="deny">DENY → blocked at gateway</strong>
+          </div>
+        </section>
+        <section>
+          <h2>Architecture</h2>
+          <p>Gateway → bank or honeypot → Redis events → analyst learning loop → active rules → dashboard.</p>
+          <p>Every request has a correlation ID, verdict, OWASP mapping, and live feed entry.</p>
+        </section>
+        <section>
+          <h2>OWASP coverage</h2>
+          <p>Seven categories are demonstrated live. A03 supply chain, A04 cryptography, and A08 integrity are shown in prepared clips.</p>
+        </section>
+        <section>
+          <h2>Live demo</h2>
+          <p>Open the dashboard, click <strong>Run scenario</strong>, and watch the seven steps progress from normal traffic to the zero-day learning moment.</p>
+          <p>The scoreboard, totals, rules, timer, and honeypot console stay visible for judges.</p>
+        </section>
+        <section>
+          <h2>Results</h2>
+          <p>SAFE traffic remains green. Suspicious traffic is contained. Learned rules turn the next matching request into a DENY.</p>
+          <p class="tag">From first signal to measurable defense.</p>
+        </section>
+      </div>
+    </main>
+    <nav>Print this page to PDF · Home: <a href="/" style="color:#7dd3fc">dashboard</a></nav>
+  </body>
+</html>
