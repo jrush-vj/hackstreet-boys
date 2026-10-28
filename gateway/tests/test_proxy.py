@@ -3,9 +3,9 @@ import json
 import time
 
 import httpx
+from app import main as gateway_main
 from fastapi.testclient import TestClient
 
-from app import main as gateway_main
 from shared.schemas import Rule
 
 
@@ -26,6 +26,7 @@ class FakeRedis:
         self.rules = rules
         self.events = []
         self.values = {}
+        self.expirations = {}
         self.counters = {}
 
     async def ping(self):
@@ -41,8 +42,9 @@ class FakeRedis:
     async def xadd(self, stream, values):
         self.events.append((stream, values))
 
-    async def set(self, key, value):
+    async def set(self, key, value, ex=None):
         self.values[key] = value
+        self.expirations[key] = ex
 
     async def get(self, key):
         return self.values.get(key)
@@ -88,8 +90,12 @@ def test_proxy_and_deny_contract(monkeypatch):
     )
     redis = FakeRedis([deny_rule])
     upstream = FakeHTTPClient()
-    monkeypatch.setattr(gateway_main.redis_asyncio, "from_url", lambda *args, **kwargs: redis)
-    monkeypatch.setattr(gateway_main.httpx, "AsyncClient", lambda *args, **kwargs: upstream)
+    monkeypatch.setattr(
+        gateway_main.redis_asyncio, "from_url", lambda *args, **kwargs: redis
+    )
+    monkeypatch.setattr(
+        gateway_main.httpx, "AsyncClient", lambda *args, **kwargs: upstream
+    )
 
     with TestClient(gateway_main.app) as client:
         safe = client.get("/api/accounts/12", headers={"X-Request-Id": "request-123"})
@@ -136,11 +142,18 @@ def test_login_session_owner_blocks_another_customers_account(monkeypatch):
 
     redis = FakeRedis([])
     upstream = BankHTTPClient()
-    monkeypatch.setattr(gateway_main.redis_asyncio, "from_url", lambda *args, **kwargs: redis)
-    monkeypatch.setattr(gateway_main.httpx, "AsyncClient", lambda *args, **kwargs: upstream)
+    monkeypatch.setattr(
+        gateway_main.redis_asyncio, "from_url", lambda *args, **kwargs: redis
+    )
+    monkeypatch.setattr(
+        gateway_main.httpx, "AsyncClient", lambda *args, **kwargs: upstream
+    )
 
     with TestClient(gateway_main.app) as client:
-        login = client.post("/api/login", json={"email": "customer1@example.test", "password": "password123"})
+        login = client.post(
+            "/api/login",
+            json={"email": "customer1@example.test", "password": "password123"},
+        )
         denied = client.get(
             "/api/accounts/22",
             headers={"Authorization": f"Bearer {login.json()['token']}"},
@@ -151,6 +164,8 @@ def test_login_session_owner_blocks_another_customers_account(monkeypatch):
         )
 
     assert login.status_code == 200
+    assert len(redis.expirations) == 1
+    assert set(redis.expirations.values()) == {gateway_main.SESSION_OWNER_TTL_SECONDS}
     assert denied.status_code == 403
     assert denied.json()["owasp"] == "A01"
     assert denied.headers["X-Verdict"] == "DENY"
@@ -171,8 +186,12 @@ def test_divert_uses_honeypot_and_schedules_correlated_sandbox_replay(monkeypatc
     )
     redis = FakeRedis([transfer_rule])
     upstream = FakeHTTPClient()
-    monkeypatch.setattr(gateway_main.redis_asyncio, "from_url", lambda *args, **kwargs: redis)
-    monkeypatch.setattr(gateway_main.httpx, "AsyncClient", lambda *args, **kwargs: upstream)
+    monkeypatch.setattr(
+        gateway_main.redis_asyncio, "from_url", lambda *args, **kwargs: redis
+    )
+    monkeypatch.setattr(
+        gateway_main.httpx, "AsyncClient", lambda *args, **kwargs: upstream
+    )
 
     with TestClient(gateway_main.app) as client:
         safe = client.post(
@@ -201,6 +220,8 @@ def test_divert_uses_honeypot_and_schedules_correlated_sandbox_replay(monkeypatc
     replay_request = next(
         call for call in upstream.requests if call[1].endswith("/replay")
     )
-    assert replay_request[2]["json"]["correlation_id"] == diverted.headers["X-Request-Id"]
+    assert (
+        replay_request[2]["json"]["correlation_id"] == diverted.headers["X-Request-Id"]
+    )
     emitted = [json.loads(values["data"]) for _, values in redis.events]
     assert [event["verdict"] for event in emitted] == ["SAFE", "DIVERT"]

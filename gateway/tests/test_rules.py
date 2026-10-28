@@ -3,13 +3,14 @@ import json
 from pathlib import Path
 
 import yaml
-
 from app.anomaly import score_request
 from app.engine import (
     RequestContext,
     RuleEngine,
 )
 from app.main import listen_for_rule_updates, reload_active_rules
+
+from shared.config import settings
 from shared.schemas import Rule
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -289,17 +290,17 @@ def test_p2_corpus_items_match_their_labels():
         if rule is not None:
             verdict = rule.action
         else:
-            verdict = "DIVERT" if score_request(make_context(item))[0] >= 0.7 else "SAFE"
+            verdict = (
+                "DIVERT" if score_request(make_context(item))[0] >= 0.7 else "SAFE"
+            )
         assert verdict == item["expected_verdict"], item["id"]
 
 
 def test_anomaly_score_is_bounded_and_benign_corpus_stays_below_threshold():
-    benign = [
-        item
-        for item in load_corpus()
-        if item["label"] == "benign"
-    ]
-    assert all(score_request(make_context(item))[0] < 0.7 for item in benign)
+    benign = [item for item in load_corpus() if item["label"] == "benign"]
+    scores = [(item["id"], score_request(make_context(item))[0]) for item in benign]
+    assert scores
+    assert all(score < settings.divert_threshold for _, score in scores), scores
 
     unusual = RequestContext(
         path="/unexpected/route/" + "x" * 500,
@@ -308,7 +309,7 @@ def test_anomaly_score_is_bounded_and_benign_corpus_stays_below_threshold():
         body='{"unseen":"<script>"' + "!" * 300 + "}",
     )
     score, components = score_request(unusual)
-    assert 0.7 <= score <= 1.0
+    assert settings.divert_threshold <= score <= 1.0
     assert set(components) == {
         "length",
         "special_characters",

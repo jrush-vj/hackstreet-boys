@@ -3,6 +3,7 @@ import binascii
 import hashlib
 import json
 import logging
+import re
 import time
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
@@ -27,6 +28,8 @@ HOP_BY_HOP_HEADERS = {
     "transfer-encoding",
     "upgrade",
 }
+PYTHON_TRACEBACK_HEADER = re.compile(r"(?m)^Traceback \(most recent call last\):\s*$")
+PYTHON_TRACEBACK_FRAME = re.compile(r'(?m)^\s+File "[^"]+", line \d+')
 
 
 class ReplayRequest(BaseModel):
@@ -56,6 +59,14 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 app = FastAPI(title="sandbox", lifespan=lifespan)
 
 
+def looks_like_python_traceback(status_code: int, body: str) -> bool:
+    return (
+        status_code == 500
+        and PYTHON_TRACEBACK_HEADER.search(body) is not None
+        and PYTHON_TRACEBACK_FRAME.search(body) is not None
+    )
+
+
 @app.get("/health")
 async def health():
     return {"status": "ok"}
@@ -66,7 +77,9 @@ async def replay(payload: ReplayRequest, request: Request):
     try:
         body = base64.b64decode(payload.body_b64, validate=True)
     except binascii.Error as exc:
-        raise HTTPException(status_code=422, detail="body_b64 must be valid base64") from exc
+        raise HTTPException(
+            status_code=422, detail="body_b64 must be valid base64"
+        ) from exc
 
     headers = {
         name: value
@@ -79,6 +92,7 @@ async def replay(payload: ReplayRequest, request: Request):
     started = time.perf_counter()
     status = 0
     error = None
+    stack_trace_leaked = False
     try:
         response = await request.app.state.http.request(
             payload.method,
@@ -87,6 +101,10 @@ async def replay(payload: ReplayRequest, request: Request):
             content=body,
         )
         status = response.status_code
+        stack_trace_leaked = looks_like_python_traceback(
+            status,
+            response.text[:8192],
+        )
     except httpx.RequestError as exc:
         error = str(exc)
         logger.warning(
@@ -118,7 +136,7 @@ async def replay(payload: ReplayRequest, request: Request):
                 "status": status,
                 "error": error,
                 "latency_ms": latency_ms,
-                "stack_trace_leaked": False,
+                "stack_trace_leaked": stack_trace_leaked,
             },
         ),
     )

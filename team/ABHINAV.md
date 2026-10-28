@@ -23,12 +23,12 @@ State: `main` has everyone's P1 + P2 and is tagged `g2-divert`. G0, G1 and G2 pa
   `READY TO MERGE (<date>): <what>` under "Requests to Jerush" below. Jerush checks this file and merges. Nobody needs to message anyone.
 
 **Do now, in order (P3, due at G3):**
-1. [ ] Merge `origin/main` (standing rules), then `docker compose down -v && docker compose up --build -d` and `pytest tests/e2e -q`: **22 pass**.
+1. [x] Merge `origin/main` (standing rules), then `docker compose down -v && docker compose up --build -d` and `pytest tests/e2e -q`: **22 pass**.
 2. [x] Hot reload on `rules:updated` under 1 s. Verified by Jerush: ~0.46 s from PATCH to new verdict. Optional: add a timing test.
-3. [ ] Anomaly score v2: tune on the corpus so every benign item stays below `DIVERT_THRESHOLD`.
-4. [ ] Sandbox: set `stack_trace_leaked=true` when the replayed 500 body looks like a Python traceback (A10).
-5. [ ] `gateway/bench.py`: p95 verdict time under 5 ms on cached rules.
-6. [ ] Optional: give `session-owner:*` keys a TTL (for example 1 h), so they don't pile up in Redis.
+3. [x] Anomaly score v2: tune on the corpus so every benign item stays below `DIVERT_THRESHOLD`.
+4. [x] Sandbox: set `stack_trace_leaked=true` when the replayed 500 body looks like a Python traceback (A10).
+5. [x] `gateway/bench.py`: p95 verdict time under 5 ms on cached rules.
+6. [x] Optional: give `session-owner:*` keys a TTL (for example 1 h), so they don't pile up in Redis.
 7. [ ] Then P4 in Part 2 below: `tests/corpus/scenarios/full.yaml` and the step-5 A06 pattern.
 
 ### History (all done, kept for reference: what Jerush changed in your files and why)
@@ -186,9 +186,9 @@ Tick boxes as you go (this file is the one place outside your folders you may ed
 
 ### P3 — Learning loop (H12–18) · due at G3
 - [x] Subscribe to `rules:updated`; reload rules in under 1 s with no restart (verified ~0.46 s)
-- [ ] Anomaly score v2: tune weights on the corpus so all benign items stay below `DIVERT_THRESHOLD`
-- [ ] Sandbox: set `stack_trace_leaked=true` when the 500 body looks like a Python traceback (A10)
-- [ ] Gateway p95 verdict time under 5 ms on cached rules. Add a tiny benchmark script in `gateway/bench.py`.
+- [x] Anomaly score v2: tune weights on the corpus so all benign items stay below `DIVERT_THRESHOLD`
+- [x] Sandbox: set `stack_trace_leaked=true` when the 500 body looks like a Python traceback (A10)
+- [x] Gateway p95 verdict time under 5 ms on cached rules. Add a tiny benchmark script in `gateway/bench.py`.
 
 ### P4 — Demo hardening (H18–22) · due at G4 (feature freeze)
 - [ ] `tests/corpus/scenarios/full.yaml`: steps in the order of `docs/07-demo-script.md`
@@ -210,4 +210,4 @@ Tick boxes as you go (this file is the one place outside your folders you may ed
 
 _Write requests here (date, what, why). The owner makes the change._
 
--
+- READY TO MERGE (2026-10-28): P3 anomaly v2, traceback leak detection, cached-rule benchmark, and session-owner TTL completed; gateway 10, sandbox 4, and e2e 22 tests pass.

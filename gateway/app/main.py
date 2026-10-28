@@ -9,10 +9,10 @@ from contextlib import asynccontextmanager
 
 import httpx
 import redis.asyncio as redis_asyncio
-from redis.asyncio import Redis
-from redis.asyncio.client import PubSub
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse, Response
+from redis.asyncio import Redis
+from redis.asyncio.client import PubSub
 
 from shared import events
 from shared.config import settings
@@ -34,6 +34,7 @@ HOP_BY_HOP_HEADERS = {
     "upgrade",
 }
 PROXY_METHODS = ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS", "HEAD"]
+SESSION_OWNER_TTL_SECONDS = 3600
 
 
 async def reload_active_rules(redis: Redis, engine: RuleEngine) -> None:
@@ -54,8 +55,7 @@ def response_headers(upstream: httpx.Response) -> dict[str, str]:
         key: value
         for key, value in upstream.headers.items()
         if key.lower() not in HOP_BY_HOP_HEADERS
-        and key.lower()
-        not in {"content-length", "content-encoding", "date", "server"}
+        and key.lower() not in {"content-length", "content-encoding", "date", "server"}
     }
 
 
@@ -94,7 +94,11 @@ async def remember_login_owner(
         )
         return
     token_key = hashlib.sha256(token.encode()).hexdigest()
-    await redis.set(f"session-owner:{token_key}", str(owner_id))
+    await redis.set(
+        f"session-owner:{token_key}",
+        str(owner_id),
+        ex=SESSION_OWNER_TTL_SECONDS,
+    )
 
 
 async def session_owner(redis: Redis, headers: dict[str, str]) -> str | None:
