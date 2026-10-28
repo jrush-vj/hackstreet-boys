@@ -149,6 +149,34 @@ async def replay_in_sandbox(
         )
 
 
+UPLOAD_TYPES = {"application/zip", "application/x-zip-compressed", "application/x-zip", "application/octet-stream"}
+
+
+def looks_like_upload(content_type: str, body: bytes) -> bool:
+    if not body:
+        return False
+    media = content_type.split(";", 1)[0].strip().lower()
+    return media in UPLOAD_TYPES or body[:4] == ZIP_MAGIC or b"EICAR-STANDARD-ANTIVIRUS" in body
+
+
+ZIP_MAGIC = bytes([0x50, 0x4B, 0x03, 0x04])  # "PK\x03\x04", the start of every zip
+
+
+async def scan_upload(app: FastAPI, body: bytes) -> dict:
+    """Ask the sandbox to scan. If it can't, fail closed: the upload is diverted, never forwarded unscanned."""
+    try:
+        response = await app.state.http.post(f"{settings.sandbox_url.rstrip('/')}/scan", content=body, timeout=20)
+        if response.status_code == 413:
+            return {"verdict": "DENY", "rule_id": "file-too-large", "score": 1.0, "components": {"size": 1.0},
+                    "findings": ["upload larger than the scanner accepts"]}
+        response.raise_for_status()
+        return response.json()
+    except (httpx.HTTPError, ValueError) as exc:
+        logger.warning(json.dumps({"event": "file_scan_unavailable", "error": str(exc)[:200]}))
+        return {"verdict": "DIVERT", "rule_id": "scan-error", "score": 1.0, "components": {"scan_error": 1.0},
+                "findings": ["scanner unavailable"]}
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     redis = redis_asyncio.from_url(settings.redis_url, decode_responses=True)
@@ -194,7 +222,7 @@ async def health():
 async def proxy(request: Request, path: str = ""):
     request_id = request.headers.get("X-Request-Id") or str(uuid.uuid4())
     body = await request.body()
-    body_text = body.decode("utf-8", errors="replace")
+    body_text = body.decode("utf-8", errors="replace").replace("\x00", "\ufffd")  # NUL cannot be stored in jsonb
     client = request.client
     ip = client.host if client else "unknown"
     context = RequestContext(
@@ -204,6 +232,11 @@ async def proxy(request: Request, path: str = ""):
         body=body_text,
         ip=ip,
     )
+    # uploads are judged by the sandbox's file scanner instead of the text rules and request score
+    upload = looks_like_upload(request.headers.get("content-type", ""), body)
+    file_scan = await scan_upload(request.app, body) if upload else None
+    if upload:
+        context = RequestContext(path=context.path, query=context.query, headers=context.headers, body="", ip=ip)
     rule = await request.app.state.engine.evaluate(context, request.app.state.redis)
     verdict = rule.action if rule else "SAFE"
     matched_owasp = rule.owasp if rule else None
@@ -211,7 +244,14 @@ async def proxy(request: Request, path: str = ""):
     scenario_step = request.headers.get("X-Scenario-Step")
     score = 0.0
     score_details = {}
-    if rule is None:
+    if file_scan is not None and rule is None:
+        if file_scan["verdict"] == "DENY":
+            verdict, matched_owasp, matched_rule_id = "DENY", "A08", file_scan["rule_id"]
+        elif file_scan["verdict"] == "DIVERT":
+            verdict, matched_rule_id = "DIVERT", file_scan["rule_id"]
+        score = file_scan["score"]
+        score_details = file_scan["components"]
+    elif rule is None:
         score, score_details = score_request(context)
         if score >= settings.divert_threshold:
             verdict = "DIVERT"
@@ -327,6 +367,8 @@ async def proxy(request: Request, path: str = ""):
                 status_code=502,
             )
 
+    event_details = {**({"anomaly_components": score_details} if score_details else {}),
+                     **({"file_scan": file_scan} if file_scan else {})}
     event = Event(
         source="gateway",
         correlation_id=request_id,
@@ -343,7 +385,7 @@ async def proxy(request: Request, path: str = ""):
             body_sha256=hashlib.sha256(body).hexdigest(),
         ),
         scenario_step=scenario_step,
-        details={"anomaly_components": score_details} if score_details else {},
+        details=event_details,
     )
     await events.emit(request.app.state.redis, event)
     response.headers["X-Request-Id"] = request_id

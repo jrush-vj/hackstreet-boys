@@ -3,6 +3,7 @@
 import asyncio
 import socket
 
+import asyncpg
 from pydantic import ValidationError
 from redis.exceptions import ResponseError
 
@@ -31,7 +32,11 @@ async def handle(pool, redis, msg_id: str, fields: dict) -> Event | None:
         store.log("bad event dropped", stream_id=msg_id, error=str(e)[:300])
         ev = None
     else:
-        await store.save_event(pool, ev)
+        try:
+            await store.save_event(pool, ev)
+        except asyncpg.DataError as e:
+            # a message Postgres can never store (e.g. a NUL in a body): drop it, or it blocks the whole stream
+            store.log("event dropped", stream_id=msg_id, error=str(e)[:200])
     await redis.xack(STREAM, GROUP, msg_id)
     return ev
 

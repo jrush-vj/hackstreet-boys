@@ -30,7 +30,7 @@ async def save_event(pool: asyncpg.Pool, ev: Event) -> None:
         """INSERT INTO events (id, ts, source, verdict, owasp, rule_id, score, correlation_id, data)
            VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) ON CONFLICT (id) DO NOTHING""",
         ev.id, ev.ts, ev.source, ev.verdict, ev.owasp, ev.rule_id, ev.score,
-        ev.correlation_id, ev.model_dump_json(),
+        ev.correlation_id, ev.model_dump_json().replace("\\u0000", "\\ufffd"),  # jsonb cannot store NUL
     )
     if ev.source == "gateway" and ev.verdict == "DENY" and ev.rule_id:
         await pool.execute("UPDATE rules SET hits = hits + 1 WHERE id = $1", ev.rule_id)
