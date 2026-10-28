@@ -8,6 +8,32 @@ sandbox that replays suspicious ones safely, and the labelled test corpus.
 
 ---
 
+## Updates from Jerush (read these first, newest at the top)
+
+### 2026-10-28 — P1 integration
+**New git workflow** (full version: `AGENTS.md` section 6, `docs/06-git-workflow.md`):
+- You keep **one branch for the whole event**: `feat/abhinav-p1-gateway`. Don't create others.
+- Start every session with `git fetch origin && git merge origin/main`.
+- When a task is done: commit only your folders, push to your branch, and tell Jerush "ready to merge".
+- **Never rebase or force-push.** Jerush merges your branch, so its history must not change.
+- Only Jerush pushes to `main`. You don't open PRs.
+
+**What happened to your P1 work:** merged into `feat/jerush-analyst-core`, then into `main`.
+G1 passes. Your gateway tests pass 5/5. The `DeprecationWarning` comes from Starlette itself and is harmless.
+
+**Jerush changed in your folders** (merge `origin/main` before you touch these files):
+- `tests/corpus/corpus.jsonl`: the bank rejected 3 SAFE items with 422 because their bodies didn't match the bank.
+  - `c-0002`, `c-0016` (login) now send `{"email": "customer1@example.test" / "customer2@...", "password": "password123"}`
+  - `c-0011` (transfer) now sends `{"from_account_id": 3, "to_account_id": 18, "amount": 25.0}`
+
+**Do this from now on:**
+- [ ] Use the bank request bodies in `docs/04-system-design.md` section 8 (new table) for every corpus item,
+      especially the P2 login-burst (A07) and transfer-burst (A06) items. Seed logins: `customer<N>@example.test` / `password123`.
+- [ ] `tests/e2e/test_g1.py` now also requires every SAFE item to return a status below 400, not just `X-Verdict: SAFE`.
+- [ ] `rules:updated` can carry a rule id or `*`, and `rules:active` holds enabled rules only. Your gateway already handles both.
+
+---
+
 ## Part 1 — Set up your laptop (about 30 min)
 
 You don't need Kaggle, the homelab or any secrets. Everything runs locally in mock mode.

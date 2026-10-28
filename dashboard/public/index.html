@@ -55,7 +55,9 @@
     const verdicts = ["SAFE", "DIVERT", "DENY"];
     const owaspIds = ["A01", "A02", "A03", "A04", "A05", "A06", "A07", "A08", "A09", "A10"];
     const $ = id => document.getElementById(id);
-    const text = value => String(value ?? "");
+    // escape: paths, rule text etc. come from attackers and are inserted with innerHTML
+    const text = value => String(value ?? "").replace(/[&<>"']/g, c =>
+      ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"})[c]);
 
     function renderStats(stats) {
       const totals = stats.totals || {};

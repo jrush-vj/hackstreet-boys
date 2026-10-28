@@ -57,7 +57,8 @@ def emit_event(request: Request, action: str) -> None:
 @app.middleware("http")
 async def event_middleware(request: Request, call_next):
     response = await call_next(request)
-    emit_event(request, f"{request.method} {request.url.path}")
+    if request.url.path != "/health":  # Docker healthchecks every 10 s are not attacker traffic
+        emit_event(request, f"{request.method} {request.url.path}")
     return response
 
 

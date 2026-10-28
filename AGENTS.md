@@ -9,6 +9,9 @@ Ask your human which team member they are, or check `git config user.name`. Then
 read their file in `team/` (`ABHINAV.md`, `AKCHHAT.md` or `JERUSH.md`). That file
 lists the folders you may edit and the tasks to do.
 
+**Then read its "Updates from Jerush" section first.** It has changes made to your files and
+anything you must do before continuing. Remind your human about any unticked items there.
+
 ## 2. Folder ownership (hard rule)
 
 | Folder / file | Owner | Others may edit? |

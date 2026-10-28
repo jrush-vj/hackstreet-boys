@@ -8,6 +8,44 @@ and the live dashboard. You also own the slides and clips.
 
 ---
 
+## Updates from Jerush (read these first, newest at the top)
+
+### 2026-10-28 — P1 integration
+**New git workflow** (full version: `AGENTS.md` section 6, `docs/06-git-workflow.md`):
+- You keep **one branch for the whole event**: `feat/akchhat-bank-dashboard`. Don't create others.
+- Start every session with `git fetch origin && git merge origin/main`.
+- When a task is done: commit only your folders, push to your branch, and tell Jerush "ready to merge".
+- **Never rebase or force-push.** Jerush merges your branch, so its history must not change.
+- Only Jerush pushes to `main`. You don't open PRs.
+
+**What happened to your P1 work:** merged into `feat/jerush-analyst-core`, then into `main`. G1 passes.
+Your branch started before the P0 skeleton, so your files clashed with Jerush's stubs. **Your versions were kept**, except:
+- `dashboard/nginx.conf`: Jerush's version is kept. **Keep these two lines** when you replace it for the Vite build:
+  `resolver 127.0.0.11 valid=10s;` and `set $analyst http://analyst:8004;` (with `proxy_pass $analyst;`).
+  Without them, nginx caches the analyst's IP and returns 502 after the analyst is recreated.
+
+**Jerush fixed in your folders** (merge `origin/main` before you touch these files):
+- `dashboard/public/index.html`: **security bug (XSS).** Event fields like `request.path` come from attackers and were
+  inserted with `innerHTML` unescaped. Requesting `/<img src=x onerror=alert(1)>` would run script in the judges' dashboard.
+  `text()` now HTML-escapes. Always wrap data in `text()`. In React, JSX escapes for you, so never use `dangerouslySetInnerHTML`.
+
+- `honeypot/app/main.py`: the middleware turned Docker's `/health` checks (every 10 s) into events, which flooded the live feed.
+  It now skips `/health`.
+
+**Please do (not blocking G1):**
+- [ ] Honeypot: build events with `shared.schemas.Event` and send them with `shared.events.emit` (`AGENTS.md` section 3),
+      instead of a hand-made dict. Add `COPY shared /app/shared` to `honeypot/Dockerfile`.
+- [ ] Honeypot: the middleware opens a **new sync Redis connection on every request**, inside async code, which blocks the server.
+      Create one `redis.asyncio` client at startup and `await` the emit.
+- [ ] Dashboard: `addEvent` shows `event.verdict || "SAFE"`, but honeypot and sandbox events have **no verdict**, so they
+      look like SAFE traffic. Show `event.source` instead (for example a grey "honeypot" chip) when `verdict` is null.
+- [ ] Bank: add a few tests in `bank/tests/` so `docker compose run --rm bank pytest -q` runs something
+      (for example login with seed credentials, account lookup, transfer).
+- [ ] Bank request bodies are now written in `docs/04-system-design.md` section 8. If you change one, tell Jerush and Abhinav (the corpus depends on them).
+- [ ] FYI: `/ws/live` only sends stats when you connect, for now. Live event and rule pushes come with Jerush's P2. Until then, the Refresh button works.
+
+---
+
 ## Part 1 — Set up your laptop (about 40 min)
 
 You don't need Kaggle, the homelab or any secrets. Everything runs locally in mock mode.
