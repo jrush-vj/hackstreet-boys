@@ -10,9 +10,9 @@ and the live dashboard. You also own the slides and clips.
 
 ## Updates from Jerush (read these first, newest at the top)
 
-### ▶ CURRENT: read this first (updated 2026-10-28, after G2)
+### ▶ CURRENT: read this first (updated 2026-10-29, after G3)
 
-State: `main` has everyone's P1 + P2 and is tagged `g2-divert`. G0, G1 and G2 pass (22/22 e2e).
+State: `main` has everyone's P1 + P2 + P3 and is tagged `g3-learning`. 30/30 e2e pass (G0–G3 + honeypot console).
 
 **Standing rules (every session, your coding agent does these without being told):**
 - Session start: `git checkout feat/akchhat-bank-dashboard && git fetch origin && git merge origin/main` (merge, never rebase or force-push).
@@ -35,15 +35,21 @@ State: `main` has everyone's P1 + P2 and is tagged `g2-divert`. G0, G1 and G2 pa
 - `bank/app/main.py`: the missing A10 weakness. Unhandled errors return the Python traceback with a 500, and
   `GET /api/accounts/<non-number>` triggers it. Tests: `bank/tests` (7), `honeypot/tests` (5).
 
-**Do now, in order (P3, due at G3):**
+**Do now, in order (P4, due at G4 = feature freeze):**
 1. [ ] Merge `origin/main` (standing rules). **Your branch is behind `main`, so do this before editing anything.** Then
-       `docker compose down -v && docker compose up --build -d`, open http://localhost:3000, and run `pytest tests/e2e -q`: **22 pass**.
-2. [x] Read `dashboard/src/App.tsx` and `src/types.ts` so you own them. They're yours to restyle.
-3. [x] Scoreboard (10 tiles, A03/A04/A08 "on slide"), rules panel with learned highlight + toggle, totals bar: done in the React dashboard.
-4. [ ] "First seen → blocked" timer: make it the big moment on screen. **`/api/timers` is live now** (Jerush, P3): after the
-       zero-day step it returns e.g. `{"rule_id": "L-…", "owasp": "A06", "seconds": 0.9, …}`. Your 5 s poll will pick it up.
-5. [ ] Projector polish: readable at 1366×768, big type, high contrast (headings at least 1.25× the body size per step).
-6. [ ] Then P4 in Part 2 below: Run-scenario button, the slide deck, and the A03/A04/A08 clips. Start the slides early.
+       `docker compose down -v && docker compose up --build -d` and `pytest tests/e2e -q`: **30 pass**.
+       Look at both dashboards: http://localhost:3000 (React, yours) and http://localhost:3000/honeypot/ (sentinel-trap replica).
+2. [x] Scoreboard, rules panel with toggle, totals bar (P3, done).
+3. [ ] P3 leftover: make the "first seen → blocked" timer the big moment. `/api/timers` is live: after the zero-day step it
+       returns e.g. `{"rule_id": "L-…", "owasp": "A06", "seconds": 0.9, …}`.
+4. [ ] Projector polish for both dashboards at 1366×768: big type, high contrast, headings at least 1.25× the body size.
+       The honeypot console has a presentation mode (press **P**). Restyle `dashboard/public/honeypot/style.css` if needed,
+       but keep its HTML ids, because `app.js` uses them.
+5. [ ] Run-scenario button → `POST /api/scenario/run {"scenario":"full"}` (returns `run_id`) with per-step progress.
+       Jerush wires the runner and a progress endpoint in P4; until then the call returns a stub `run_id`.
+6. [ ] Slide deck (problem → three verdicts → architecture → OWASP coverage → live demo → results) and the 3 clips
+       (A03 dependency scan, A04 plain-HTTP login, A08 tampered token). Start these early.
+7. [ ] Prepare your speaking part: step 1 of the demo and the slide intro.
 
 ### History (all done, kept for reference: what Jerush changed in your files and why)
 

@@ -16,13 +16,15 @@ You're also the only person who merges to `main`.
 | Kaggle #1 | Optional: generates rewordings of corpus items for the runner (never free-form attacks) |
 | Cloudflare | Tunnel `demo.jrushvj.dev` (Cloudflare Access, team emails only) |
 
-## ▶ CURRENT (updated 2026-10-28, after G2)
+## ▶ CURRENT (updated 2026-10-29, after G3)
 
-`main` = everyone's P1 + P2, tagged `g2-divert`, 22/22 e2e green.
-1. [ ] Run `kaggle/defense.ipynb` on Kaggle #2 (secret `DEFENSE_LLM_KEY` only); it prints the `trycloudflare.com` URL and checks that it returns 401 without the key.
-2. [ ] Homelab: deploy `g2-divert` per `infra/homelab.md`, plus the `demo.jrushvj.dev` tunnel behind Cloudflare Access.
-3. [x] P3 analyst loop (below), including OWASP tagging of anomaly-only DIVERTs (the A06 tile now counts them).
-4. [ ] Every hour: look for `READY TO MERGE` lines under "Requests to Jerush" in `team/ABHINAV.md` and `team/AKCHHAT.md`, then run the integration loop.
+`main` = everyone's P1 + P2 + P3, tagged `g3-learning`, 30/30 e2e green (mock mode).
+1. [ ] Kaggle: run your Qwen3-14B notebook, paste the trycloudflare URL + key in the honeypot console (⚙), "Test connection",
+       then run `pytest tests/e2e/test_g3.py -q` once against it (G3 in kaggle mode).
+2. [ ] P4: `runner/` (`/run`, `/runs/{id}`, reads `scenarios/full.yaml`, target allowlist before every send),
+       `/api/scenario/run` → runner plus a progress endpoint for Akchhat's button.
+3. [ ] Homelab deploy of `g3-learning` (`infra/homelab.md`), fallback video, 3 clean full runs → `demo-ready`.
+4. [ ] Every hour: look for `READY TO MERGE` lines under "Requests to Jerush" in both team files.
 
 ## Tasks
 

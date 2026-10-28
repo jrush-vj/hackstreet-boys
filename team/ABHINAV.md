@@ -10,9 +10,9 @@ sandbox that replays suspicious ones safely, and the labelled test corpus.
 
 ## Updates from Jerush (read these first, newest at the top)
 
-### ▶ CURRENT: read this first (updated 2026-10-28, after G2)
+### ▶ CURRENT: read this first (updated 2026-10-29, after G3)
 
-State: `main` has everyone's P1 + P2 and is tagged `g2-divert`. G0, G1 and G2 pass (22/22 e2e).
+State: `main` has everyone's P1 + P2 + P3 and is tagged `g3-learning`. 30/30 e2e pass (G0–G3 + honeypot console).
 
 **Standing rules (every session, your coding agent does these without being told):**
 - Session start: `git checkout feat/abhinav-p1-gateway && git fetch origin && git merge origin/main` (merge, never rebase or force-push).
@@ -32,14 +32,17 @@ State: `main` has everyone's P1 + P2 and is tagged `g2-divert`. G0, G1 and G2 pa
 - The bank now leaks a real Python traceback with a 500 on `GET /api/accounts/<non-number>`, so your sandbox
   `stack_trace_leaked` check has something to catch. Use that path (GET) for the A10 step in `scenarios/full.yaml`.
 
-**Do now, in order (P3, due at G3):**
-1. [x] Merge `origin/main` (standing rules), then `docker compose down -v && docker compose up --build -d` and `pytest tests/e2e -q`: **22 pass**.
-2. [x] Hot reload on `rules:updated` under 1 s. Verified by Jerush: ~0.46 s from PATCH to new verdict. Optional: add a timing test.
-3. [x] Anomaly score v2: tune on the corpus so every benign item stays below `DIVERT_THRESHOLD`.
-4. [x] Sandbox: set `stack_trace_leaked=true` when the replayed 500 body looks like a Python traceback (A10).
-5. [x] `gateway/bench.py`: p95 verdict time under 5 ms on cached rules.
-6. [x] Optional: give `session-owner:*` keys a TTL (for example 1 h), so they don't pile up in Redis.
-7. [ ] Then P4 in Part 2 below: `tests/corpus/scenarios/full.yaml` and the step-5 A06 pattern.
+**Do now, in order (P4, due at G4 = feature freeze):**
+1. [ ] Merge `origin/main` (standing rules), then `docker compose down -v && docker compose up --build -d`,
+       `docker compose run --rm gateway pytest -q` and `pytest tests/e2e -q`: **30 pass** (G0–G3 + honeypot console).
+2. [ ] Step-5 corpus (the zero-day moment): one **new** A06 transfer-abuse item that no rule covers (it must DIVERT on first
+       sight), plus 3 variants that the learned rule must DENY. In offline mode the learned rule is the canned A06 one
+       (`shared/canned.py`: a JSON field holding 8+ punctuation characters), so make the variants fit it too.
+3. [ ] `tests/corpus/scenarios/full.yaml`: `[{step, corpus_ids, delay_ms}]` in the order of `docs/07-demo-script.md`.
+       Step 5 = first-sight item, then `delay_ms: 3000` (learning takes ~1 s with mock, longer with Kaggle), then the 3 variants.
+       Step 6 (A10) = a GET to `/api/accounts/<not-a-number>?…` that DIVERTs, so the sandbox catches the leaked stack trace.
+4. [ ] Run the full scenario 3 times (Jerush's runner, or by hand), and fix any benign item that trips DIVERT.
+5. [ ] Prepare your speaking part: steps 2–4 of the demo.
 
 ### History (all done, kept for reference: what Jerush changed in your files and why)
 
