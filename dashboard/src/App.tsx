@@ -48,6 +48,7 @@ export default function App() {
   const [scenarioRunId, setScenarioRunId] = useState<string | null>(null);
   const [scenarioStep, setScenarioStep] = useState(-1);
   const [scenarioRunning, setScenarioRunning] = useState(false);
+  const [selectedAttack, setSelectedAttack] = useState<"SQL Injection" | "Prompt Injection" | "Log Injection" | null>(null);
 
   useEffect(() => {
     const refreshTimers = () => {
@@ -158,133 +159,115 @@ export default function App() {
     }
   };
 
+  const visibleEvents = selectedAttack
+    ? events.filter((event) => {
+        if (selectedAttack === "Log Injection") return event.owasp === "A09" || event.request.path.includes("memo");
+        return event.owasp === "A05" || event.request.query.toLowerCase().includes(selectedAttack.split(" ")[0].toLowerCase());
+      })
+    : events;
+
   return (
-    <div className="min-h-screen">
-      <header className="flex items-center justify-between border-b border-slate-800 px-6 py-5">
+    <div className="dashboard-shell">
+      <header className="dashboard-header">
         <div>
-          <h1 className="text-4xl font-bold tracking-tight">Secure Sphere</h1>
-          <p className="text-lg text-slate-400">Zero-day detection gateway · OWASP Top 10:2025</p>
+          <p className="eyebrow">EICAR · Security Feature Checks</p>
+          <h1>Secure Sphere</h1>
+          <p className="subtitle">Zero-day detection gateway · OWASP Top 10:2025</p>
         </div>
-        <div className="flex items-center gap-3">
-          <a href="/slides/" className="rounded-md bg-sky-500/20 px-3 py-2 text-sm font-semibold text-sky-200 hover:bg-sky-500/30">
-            Demo slides →
-          </a>
-          <a href="/honeypot/" className="rounded-md bg-amber-500/20 px-3 py-1 text-sm font-semibold text-amber-200 hover:bg-amber-500/30">
-            Honeypot console →
-          </a>
-          <span className={`rounded-full px-3 py-1 text-sm font-semibold ${live ? "bg-emerald-500/20 text-emerald-300" : "bg-slate-800 text-slate-400"}`}>
-            {live ? "● live" : "○ connecting…"}
-          </span>
+        <div className="header-actions">
+          <span className={`live-pill ${live ? "is-live" : ""}`}>{live ? "● LIVE" : "○ CONNECTING"}</span>
+          <a href="/slides/" className="ui-button">Slides</a>
+          <a href="/honeypot/" className="ui-button">Honeypot</a>
         </div>
       </header>
 
-      {error && <p className="bg-red-900/40 px-6 py-2 text-red-200">Analyst unreachable: {error}</p>}
+      {error && <p className="error-banner">Analyst unreachable: {error}</p>}
 
-      <section className="mx-4 mt-4 rounded-lg border border-sky-800 bg-sky-950/40 p-4">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <h2 className="text-2xl font-semibold">Demo scenario</h2>
-            <p className="text-base text-slate-300">
-              {scenarioRunId ? `Run ${scenarioRunId}` : "Play the seven-step judge-facing flow"}
-            </p>
-          </div>
-          <button
-            onClick={runScenario}
-            disabled={scenarioRunning}
-            className="rounded-md bg-sky-500 px-5 py-3 text-base font-bold text-slate-950 transition hover:bg-sky-400 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            {scenarioRunning ? "Scenario running…" : "Run scenario"}
+      <main className="reference-layout">
+        <nav className="attack-panel" aria-label="Security feature checks">
+          {(["SQL Injection", "Prompt Injection", "Log Injection"] as const).map((attack) => (
+            <button
+              key={attack}
+              type="button"
+              className={`ui-button attack-button ${selectedAttack === attack ? "is-selected" : ""}`}
+              onClick={() => setSelectedAttack(selectedAttack === attack ? null : attack)}
+            >
+              {attack}
+            </button>
+          ))}
+          <button type="button" className="ui-button attack-button clear-button" onClick={() => setSelectedAttack(null)}>
+            Show All Events
           </button>
-        </div>
-        <ol className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7">
-          {SCENARIO_STEPS.map((step, index) => {
-            const complete = scenarioStep > index;
-            const active = scenarioRunning && scenarioStep === index;
-            return (
-              <li key={step.key} className={`rounded-md border px-3 py-2 text-sm ${complete ? "border-emerald-500 bg-emerald-500/15 text-emerald-200" : active ? "border-sky-400 bg-sky-400/15 text-sky-100" : "border-slate-700 bg-slate-900/60 text-slate-400"}`}>
-                <span className="mr-2 font-mono font-bold">{complete ? "✓" : `${index + 1}`}</span>
-                {step.label}
-              </li>
-            );
-          })}
-        </ol>
-      </section>
+        </nav>
 
-      <main className="grid gap-5 p-4 lg:grid-cols-[3fr_2fr]">
-        <section className="rounded-lg border border-slate-800 bg-slate-900 p-4">
-          <h2 className="mb-3 text-2xl font-semibold">Live feed</h2>
-          <ol className="max-h-[75vh] space-y-2 overflow-y-auto pr-1">
-            {events.length === 0 && <li className="text-slate-400">Waiting for traffic…</li>}
-            {events.map((e) => (
-              <FeedRow key={e.id} event={e} />
+        <section className="evidence-panel">
+          <div className="panel-heading">
+            <div>
+              <p className="eyebrow">OWASP security coverage</p>
+              <h2>OWASP Top 10:2025</h2>
+            </div>
+            <button type="button" className="ui-button run-button" onClick={runScenario}>
+              {scenarioRunning ? "Restart Scenario" : "Run Scenario"}
+            </button>
+          </div>
+          <div className="owasp-center-grid">
+            {(Object.keys(OWASP_2025) as OwaspId[]).map((id) => <OwaspTile key={id} id={id} counts={stats?.owasp[id]} />)}
+          </div>
+          <div className="evidence-heading">
+            <span>{selectedAttack ?? "All traffic"} · live evidence</span>
+            <span>{visibleEvents.length} events</span>
+          </div>
+          <div className="verdict-strip">
+            {(["SAFE", "DIVERT", "DENY"] as Verdict[]).map((verdict) => (
+              <div key={verdict} className={`verdict-card ${verdict.toLowerCase()}`}>
+                <span>{verdict}</span>
+                <strong>{stats?.totals[verdict] ?? 0}</strong>
+              </div>
             ))}
+          </div>
+          <ol className="event-feed">
+            {visibleEvents.length === 0 && <li className="empty-feed">Waiting for traffic… Select a check or run the scenario.</li>}
+            {visibleEvents.map((event) => <FeedRow key={event.id} event={event} />)}
           </ol>
-        </section>
-
-        <aside className="space-y-4">
-          <section className="rounded-lg border border-slate-800 bg-slate-900 p-4">
-            <h2 className="mb-3 text-2xl font-semibold">Totals</h2>
-            <div className="grid grid-cols-3 gap-2">
-              {(["SAFE", "DIVERT", "DENY"] as Verdict[]).map((v) => (
-                <div key={v} className={`rounded-md border-l-4 p-3 ${VERDICT_STYLE[v]}`}>
-                  <div className={`text-sm font-semibold ${VERDICT_TEXT[v]}`}>{v}</div>
-                  <div className="text-3xl font-bold tabular-nums">{stats?.totals[v] ?? 0}</div>
-                </div>
-              ))}
+          <div className="scenario-progress">
+            <div className="progress-heading">
+              <span>{scenarioRunId ? `Run ${scenarioRunId}` : "Seven-step judge-facing flow"}</span>
+              <span>{scenarioStep < 0 ? "Ready" : `${Math.min(scenarioStep, SCENARIO_STEPS.length)}/${SCENARIO_STEPS.length}`}</span>
             </div>
-          </section>
-
-          <section className="rounded-lg border border-slate-800 bg-slate-900 p-4">
-            <h2 className="mb-3 text-2xl font-semibold">OWASP Top 10:2025</h2>
-            <div className="grid grid-cols-2 gap-2 xl:grid-cols-5">
-              {(Object.keys(OWASP_2025) as OwaspId[]).map((id) => (
-                <OwaspTile key={id} id={id} counts={stats?.owasp[id]} />
-              ))}
-            </div>
-          </section>
-
-          <section className="rounded-lg border border-slate-800 bg-slate-900 p-4">
-            <h2 className="mb-3 text-2xl font-semibold">
-              Rules <span className="text-base font-normal text-slate-400">({stats?.learned_rules ?? 0} learned)</span>
-            </h2>
-            <ul className="max-h-64 divide-y divide-slate-800 overflow-y-auto">
-              {rules.map((r) => (
-                <li key={r.id} className={`flex items-center justify-between gap-3 py-2 ${r.source === "learned" ? "text-amber-200" : ""}`}>
-                  <div className="min-w-0">
-                    <div className="font-mono text-sm font-semibold">
-                      {r.id} · {r.owasp} · {r.action} {r.source === "learned" && "· learned"}
-                    </div>
-                    <div className="truncate text-sm text-slate-400">{r.description}</div>
-                  </div>
-                  <button
-                    onClick={() => toggle(r)}
-                    className={`shrink-0 rounded px-3 py-1 text-sm font-semibold ${r.enabled ? "bg-emerald-600 text-white" : "bg-slate-700 text-slate-300"}`}
-                    aria-pressed={r.enabled}
-                  >
-                    {r.enabled ? "On" : "Off"}
-                  </button>
+            <ol>
+              {SCENARIO_STEPS.map((step, index) => (
+                <li key={step.key} className={scenarioStep > index ? "complete" : scenarioRunning && scenarioStep === index ? "active" : ""}>
+                  <span>{scenarioStep > index ? "✓" : index + 1}</span>{step.label}
                 </li>
               ))}
-            </ul>
-          </section>
+            </ol>
+          </div>
+        </section>
 
-          <section className="rounded-lg border border-slate-800 bg-slate-900 p-4">
-            <h2 className="mb-3 text-2xl font-semibold">First seen → blocked</h2>
-            {timers.length === 0 ? (
-              <p className="text-slate-400">No learned rule has blocked yet.</p>
-            ) : (
-              timers.map((t) => (
-                <div key={t.rule_id} className="mb-3 text-lg last:mb-0">
-                  <div>
-                    <span className="text-4xl font-bold tabular-nums text-amber-300">{t.seconds}s</span>{" "}
-                    <span className="font-mono">{t.rule_id}</span> ({t.owasp})
-                  </div>
-                  <div className="text-sm text-slate-400">
-                    First blocked {new Date(t.first_blocked).toLocaleTimeString()}
-                  </div>
-                </div>
-              ))
-            )}
+        <aside className="info-panel">
+          <div className="info-copy">
+            {["EICAR", "AMTSO Security Feature Checks", "EMBER malware dataset", "CICMalDroid 2020"].map((item) => (
+              <button key={item} type="button" className={`ui-button eicar-card ${item === "EICAR" ? "eicar-title" : ""}`}>
+                {item}
+              </button>
+            ))}
+          </div>
+          <section className="info-section right-actions">
+            <h2>First seen → blocked</h2>
+            {timers.length === 0 ? <p className="muted">No learned rule has blocked yet.</p> : timers.map((timer) => (
+              <div key={timer.rule_id} className="timer-card">
+                <strong>{timer.seconds}s</strong>
+                <span>{timer.rule_id} · {timer.owasp}</span>
+              </div>
+            ))}
+          </section>
+          <section className="info-section rules-section">
+            <h2>Active rules <small>{stats?.learned_rules ?? 0} learned</small></h2>
+            {rules.slice(0, 5).map((rule) => (
+              <button key={rule.id} type="button" className={`ui-button rule-row ${rule.enabled ? "enabled" : ""}`} onClick={() => toggle(rule)} aria-pressed={rule.enabled}>
+                <span>{rule.id} · {rule.owasp}</span><b>{rule.enabled ? "ON" : "OFF"}</b>
+              </button>
+            ))}
           </section>
         </aside>
       </main>
