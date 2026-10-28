@@ -10,6 +10,25 @@ sandbox that replays suspicious ones safely, and the labelled test corpus.
 
 ## Updates from Jerush (read these first, newest at the top)
 
+### 2026-10-28 — P2 integration (G2 green locally)
+Your P2 (rate + path rules, owner check, anomaly v1, DIVERT → honeypot + sandbox) works end to end. Thanks!
+
+**Jerush changed in your folders** (merge `origin/main` before you touch these files):
+- `tests/corpus/corpus.jsonl`: added `c-0056`…`c-0061`, an A07 login burst (OWASP WSTG-ATHN-03) with wrong passwords.
+  G2 needed A07 **DENY** items. With `c-0054` counted first, attempts 1–4 are SAFE and 5–6 are DENY (limit 5/min per IP).
+- `gateway/tests/test_rules.py`: `test_p2_corpus_items_match_their_labels` now keeps one fake Redis **per OWASP category**,
+  the same way the e2e tests count. Before, the earlier benign login counted toward the burst.
+- `tests/e2e/conftest.py` (Jerush's) clears `rate:*` before every e2e test, so reruns inside 60 s don't trip the limits.
+- `docs/04-system-design.md` section 7 now documents your response-side A01 check (`access-account-owner`).
+
+**Your next steps (P3, due at G3):**
+1. [ ] `git fetch origin && git merge origin/main`, then rebuild and run `pytest tests/e2e -q` (22 must pass).
+2. [ ] Hot reload on `rules:updated` under 1 s. You already reload; add a test that times it.
+3. [ ] Anomaly score v2: tune on the corpus so every benign item stays below `DIVERT_THRESHOLD`.
+4. [ ] Sandbox: set `stack_trace_leaked=true` when the replayed 500 body looks like a Python traceback (A10).
+5. [ ] `gateway/bench.py`: p95 verdict time under 5 ms on cached rules.
+6. [ ] Optional: give `session-owner:*` keys a TTL (for example 1 h), so they don't pile up in Redis.
+
 ### 2026-10-28 — G2 test is ready (`tests/e2e/test_g2.py`)
 It's red until your P2 lands. It expects:
 - [ ] At least one corpus item with `"expected_verdict": "DIVERT"`. Sending it must give `X-Verdict: DIVERT`, and within 8 s the analyst must have

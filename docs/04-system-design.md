@@ -155,6 +155,10 @@ Rule pack YAML (`gateway/rules/packs/<name>.yaml`, Abhinav):
 3. Regex/header rules (pack first, then learned) → 4. Anomaly score.
 The first DENY wins. Otherwise the first DIVERT wins. Otherwise score ≥ `DIVERT_THRESHOLD` means DIVERT, else SAFE.
 
+A01 account ownership is checked **after** the bank answers (GET only, so no side effects): the gateway
+remembers `token → customer` from successful logins, and if `GET /api/accounts/{id}` returns an account whose
+`customer_id` isn't the caller's, it replaces the response with a DENY (`rule_id: "access-account-owner"`, A01).
+
 Every response carries the headers `X-Request-Id` and `X-Verdict`. A DENY returns:
 
 ```json

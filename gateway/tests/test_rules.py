@@ -279,10 +279,12 @@ def test_p2_path_rate_rules_and_anomaly_score():
 def test_p2_corpus_items_match_their_labels():
     engine = RuleEngine()
     engine.replace_rules(load_all_pack_rules())
-    redis = FakeRedis()
+    redises: dict = {}
     items = [item for item in load_corpus() if item["id"] > "c-0040"]
 
     for item in items:
+        # rate counters per OWASP category, like tests/e2e (bursts are counted within their own category)
+        redis = redises.setdefault(item["owasp"], FakeRedis())
         rule = asyncio.run(engine.evaluate(make_context(item), redis))
         if rule is not None:
             verdict = rule.action

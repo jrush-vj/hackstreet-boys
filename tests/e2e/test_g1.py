@@ -31,8 +31,9 @@ def by_verdict(verdict: str) -> list[dict]:
 
 
 def test_safe_requests_reach_the_real_bank():
-    items = by_verdict("SAFE")
-    assert items, "corpus has no SAFE items"
+    # benign only: malicious-but-SAFE items (e.g. the first logins of an A07 burst) may legitimately get 401
+    items = [c for c in by_verdict("SAFE") if c["label"] == "benign"]
+    assert items, "corpus has no benign SAFE items"
     for item in items:
         r = send(item)
         assert r.headers.get("X-Verdict") == "SAFE", item["id"]

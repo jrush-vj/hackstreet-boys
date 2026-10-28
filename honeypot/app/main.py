@@ -1,16 +1,31 @@
-import json
 import logging
-import os
-import uuid
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 from typing import Any
 
+import redis.asyncio as aioredis
 from fastapi import FastAPI, Request
 from pydantic import BaseModel
 
+from shared.config import settings
+from shared.events import emit
+from shared.schemas import Event, RequestInfo
+
 logging.basicConfig(level=logging.INFO, format="%(message)s")
 logger = logging.getLogger("honeypot")
-app = FastAPI(title="VulnBank Honeypot")
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+    app.state.redis = aioredis.from_url(settings.redis_url, decode_responses=True)
+    try:
+        yield
+    finally:
+        await app.state.redis.aclose()
+
+
+app = FastAPI(title="VulnBank Honeypot", lifespan=lifespan)
 
 
 class LoginRequest(BaseModel):
@@ -32,33 +47,31 @@ class ChatRequest(BaseModel):
     message: str
 
 
-def emit_event(request: Request, action: str) -> None:
-    event = {
-        "id": str(uuid.uuid4()),
-        "ts": datetime.now(timezone.utc).isoformat(),
-        "source": "honeypot",
-        "correlation_id": request.headers.get("x-request-id", ""),
-        "request": {"method": request.method, "path": request.url.path, "ip": request.client.host if request.client else ""},
-        "details": {"route": request.url.path, "action": action},
-    }
-    payload = json.dumps(event)
-    redis_url = os.getenv("REDIS_URL")
-    if redis_url:
-        try:
-            import redis
-
-            redis.Redis.from_url(redis_url).xadd("events", {"data": payload})
-            return
-        except Exception as error:
-            logger.error("honeypot event emission failed: %s", error)
-    logger.info(payload)
+async def emit_event(request: Request, action: str) -> None:
+    event = Event(
+        source="honeypot",
+        # the gateway forwards its X-Request-Id, which links this event to the DIVERT
+        correlation_id=request.headers.get("x-request-id", ""),
+        request=RequestInfo(
+            method=request.method,
+            path=request.url.path,
+            query=request.url.query,
+            ip=request.client.host if request.client else "",
+            user_agent=request.headers.get("user-agent", ""),
+        ),
+        details={"route": request.url.path, "action": action},
+    )
+    try:
+        await emit(request.app.state.redis, event)
+    except Exception as error:  # never fail the attacker's response because Redis blipped
+        logger.error("honeypot event emission failed: %s", error)
 
 
 @app.middleware("http")
 async def event_middleware(request: Request, call_next):
     response = await call_next(request)
     if request.url.path != "/health":  # Docker healthchecks every 10 s are not attacker traffic
-        emit_event(request, f"{request.method} {request.url.path}")
+        await emit_event(request, f"{request.method} {request.url.path}")
     return response
 
 

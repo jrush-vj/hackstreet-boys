@@ -38,8 +38,8 @@ You're also the only person who merges to `main`.
 
 ### P2 — DIVERT + infra (H6–12) · gate G2
 - [x] `WS /ws/live` broadcasting events, rules and stats
-- [ ] `kaggle/defense.ipynb`: llama.cpp server (OpenAI API) with your chosen model, an API key, and a Cloudflare tunnel to `defense.jrushvj.dev`
-- [ ] `infra/homelab.md`: deploy steps; first homelab deploy of `g1-core`
+- [ ] `kaggle/defense.ipynb`: llama.cpp server (OpenAI API) with your chosen model, an API key, and a Cloudflare tunnel to `defense.jrushvj.dev` (notebook written; **run it on Kaggle #2** with secrets `DEFENSE_LLM_KEY`, `CF_TUNNEL_TOKEN`)
+- [ ] `infra/homelab.md`: deploy steps; first homelab deploy of `g1-core` (steps written; **deploy not done yet**)
 - [ ] `tests/e2e/test_g2.py`; merge, test, tag `g2-divert`
 
 ### P3 — Learning loop (H12–18) · gate G3

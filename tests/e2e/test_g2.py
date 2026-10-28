@@ -5,7 +5,6 @@ Run against `docker compose up` in dev: pytest tests/e2e -q"""
 
 import asyncio
 import json
-import subprocess
 import time
 
 import httpx
@@ -13,14 +12,6 @@ import pytest
 import websockets
 
 from test_g1 import ANALYST, corpus, send
-
-
-@pytest.fixture(autouse=True)
-def reset_rate_counters():
-    # rate rules count per IP/account in Redis; earlier runs must not trip this one
-    subprocess.run(["docker", "compose", "exec", "-T", "redis", "sh", "-c",
-                    "redis-cli --scan --pattern 'rate:*' | xargs -r redis-cli del"],
-                   capture_output=True, check=True)
 
 
 def events_for(rid: str) -> list[dict]:

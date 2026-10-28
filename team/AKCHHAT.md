@@ -10,6 +10,32 @@ and the live dashboard. You also own the slides and clips.
 
 ## Updates from Jerush (read these first, newest at the top)
 
+### 2026-10-28 — P2 integration (G2 green locally): Jerush finished your open P1/P2 items
+Your branch hadn't merged `main` and only changed the checklist and README, so Jerush completed these in integration.
+**Merge `origin/main` before you change anything in your folders**, or you'll get conflicts.
+
+- **Dashboard is now React + Vite + TypeScript + Tailwind** (`dashboard/src/`): `types.ts` mirrors the contracts, and `App.tsx` has:
+  - the live feed over `/ws/live`, with auto-reconnect
+  - verdict colours and OWASP chips with names
+  - a source label (HONEYPOT/SANDBOX) on events that have no verdict
+  - totals, the 10 OWASP tiles (A03/A04/A08 marked "on slide"), rules with an On/Off toggle, and timers
+  `public/index.html` (the static page) was removed. The `Dockerfile` is now a Node 20 build stage plus nginx.
+  `npm test` runs the type check. Dev loop: `cd dashboard && npm install && npm run dev`.
+- `dashboard/README.md`: restored. It had been saved in a non-UTF-8 encoding (the `—` turned into `ù`) and had lost its content.
+  **Save files as UTF-8** (VS Code: bottom-right encoding → "Save with Encoding" → UTF-8).
+- `honeypot/app/main.py`: events are now `shared.schemas.Event` sent with `shared.events.emit`, using one async Redis client
+  created at startup (no more sync connection per request). `honeypot/Dockerfile` copies `shared/` and sets `PYTHONPATH`.
+- `bank/Dockerfile`: copies `shared/` (your unticked P1 item) and sets `PYTHONPATH`.
+- Tests: `bank/tests/` (seed counts, login, owner field, transfer, search and memo) and `honeypot/tests/` (route shapes,
+  shared-schema event with `correlation_id`, no `/health` events). Run them with `docker compose run --rm bank pytest -q` (same for honeypot).
+
+**Your next steps (P3, due at G3):**
+1. [ ] `git fetch origin && git merge origin/main`, then `docker compose down -v && docker compose up --build -d` and open http://localhost:3000.
+2. [ ] Read `dashboard/src/App.tsx` so you own it. It's yours to restyle.
+3. [ ] P3 items in Part 2 below: the scoreboard and rules toggle exist already, so polish them. Make the
+       "first seen → blocked" timer the big moment (it fills in when Jerush's `/api/timers` lands in P3).
+4. [ ] Start the slide deck and the A03/A04/A08 clips early (P4). They take longer than you think.
+
 ### 2026-10-28 — `/ws/live` is live
 - `/ws/live` now pushes `{"type":"event"}` for every saved event, `{"type":"rule"}` when a rule changes,
   and `{"type":"stats"}` at most once a second. Your current page already updates live; the Refresh button is no longer needed.
@@ -51,13 +77,13 @@ Your branch started before the P0 skeleton, so your files clashed with Jerush's 
   It now skips `/health`.
 
 **Please do (not blocking G1):**
-- [ ] Honeypot: build events with `shared.schemas.Event` and send them with `shared.events.emit` (`AGENTS.md` section 3),
+- [x] Honeypot: build events with `shared.schemas.Event` and send them with `shared.events.emit` (`AGENTS.md` section 3),
       instead of a hand-made dict. Add `COPY shared /app/shared` to `honeypot/Dockerfile`.
-- [ ] Honeypot: the middleware opens a **new sync Redis connection on every request**, inside async code, which blocks the server.
+- [x] Honeypot: the middleware opens a **new sync Redis connection on every request**, inside async code, which blocks the server.
       Create one `redis.asyncio` client at startup and `await` the emit.
-- [ ] Dashboard: `addEvent` shows `event.verdict || "SAFE"`, but honeypot and sandbox events have **no verdict**, so they
+- [x] Dashboard: `addEvent` shows `event.verdict || "SAFE"`, but honeypot and sandbox events have **no verdict**, so they
       look like SAFE traffic. Show `event.source` instead (for example a grey "honeypot" chip) when `verdict` is null.
-- [ ] Bank: add a few tests in `bank/tests/` so `docker compose run --rm bank pytest -q` runs something
+- [x] Bank: add a few tests in `bank/tests/` so `docker compose run --rm bank pytest -q` runs something
       (for example login with seed credentials, account lookup, transfer).
 - [ ] Bank request bodies are now written in `docs/04-system-design.md` section 8. If you change one, tell Jerush and Abhinav (the corpus depends on them).
 - [x] FYI: `/ws/live` now pushes events, rules and stats live (see the newest update).
@@ -145,15 +171,15 @@ Tick boxes as you go (this file is the one place outside your folders you may ed
 - [x] The intentional weaknesses listed in the table. Keep each one small and commented with `# DEMO-WEAKNESS: A0x`, so it's obvious and easy to show judges.
 - [x] Support chat: a **mock bot** (rule-based replies, no real LLM) whose hidden prompt contains a fake "internal note"
 - [x] The bank must never call the internet: statement fetch uses an httpx client with a 2 s timeout, and the network is internal-only anyway
-- [ ] `bank/Dockerfile` (build context = repo root, `COPY shared /app/shared`) — pending: the current image copies only the bank package.
+- [x] `bank/Dockerfile` (build context = repo root, `COPY shared /app/shared`) (done by Jerush in integration)
 - [x] `honeypot/`: stub with the same routes, returning `{"ok":true}`
 
 ### P2 — Honeypot + live feed (H6–12) · due at G2
 - [x] Honeypot: the same routes and response *shapes* as the bank, with separate fake data and no real effects (transfers "succeed" but change nothing)
 - [x] Honeypot emits an event per request: `source="honeypot"`, `details={"route","action"}`
-- [ ] Dashboard (React + Vite + TS + Tailwind): `src/types.ts` mirroring `Event`/`Rule`/stats from the design doc
-- [x] Live feed page: connect to `/ws/live`, newest first, green/amber/red by verdict, OWASP chip, rule id, path (static dashboard implementation)
-- [ ] `dashboard/Dockerfile`: build with Node, serve with nginx; nginx proxies `/api` and `/ws` to `analyst:8004` — pending: current image serves the static page directly.
+- [x] Dashboard (React + Vite + TS + Tailwind): `src/types.ts` mirroring `Event`/`Rule`/stats from the design doc (done by Jerush in integration)
+- [x] Live feed page: connect to `/ws/live`, newest first, green/amber/red by verdict, OWASP chip, rule id, path (React, done by Jerush in integration)
+- [x] `dashboard/Dockerfile`: build with Node, serve with nginx; nginx proxies `/api` and `/ws` to `analyst:8004` (done by Jerush in integration)
 
 ### P3 — Scoreboard + timer (H12–18) · due at G3
 - [ ] OWASP scoreboard: 10 tiles (A01–A10 with names from the design doc). A tile lights up when it has a DIVERT or DENY. A03, A04 and A08 are marked "on slide".

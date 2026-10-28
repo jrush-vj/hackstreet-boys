@@ -63,6 +63,8 @@ services:
     healthcheck: *hc
     volumes:
       - ./gateway/rules/packs:/app/packs:ro
+    extra_hosts:
+      - "host.docker.internal:host-gateway"  # LLM_MODE=local reaches llama.cpp on the host (Linux homelab)
     depends_on:
       redis: { condition: service_healthy }
       postgres: { condition: service_healthy }
