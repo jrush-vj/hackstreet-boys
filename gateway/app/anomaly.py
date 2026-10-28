@@ -25,6 +25,12 @@ KNOWN_BODY_PARAMS = {
     "password",
     "to_account_id",
 }
+ANOMALY_WEIGHTS = {
+    "length": 0.25,
+    "special_characters": 0.3,
+    "unseen_path": 0.15,
+    "unseen_params": 0.3,
+}
 
 
 def _normalized_path(path: str) -> str:
@@ -61,9 +67,9 @@ def score_request(context: RequestContext) -> tuple[float, dict[str, float]]:
     param_score = min(unknown_count / max(len(param_names), 1), 1.0)
 
     components = {
-        "length": length_score * 0.3,
-        "special_characters": special_score * 0.35,
-        "unseen_path": path_score * 0.15,
-        "unseen_params": param_score * 0.2,
+        "length": length_score * ANOMALY_WEIGHTS["length"],
+        "special_characters": special_score * ANOMALY_WEIGHTS["special_characters"],
+        "unseen_path": path_score * ANOMALY_WEIGHTS["unseen_path"],
+        "unseen_params": param_score * ANOMALY_WEIGHTS["unseen_params"],
     }
     return round(min(sum(components.values()), 1.0), 4), components
