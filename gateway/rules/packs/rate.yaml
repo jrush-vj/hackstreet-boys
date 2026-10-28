@@ -1,0 +1,20 @@
+- id: rate-001
+  owasp: A07
+  match_type: rate
+  pattern: "/api/login"
+  params:
+    key: ip
+    limit: 5
+    window_s: 60
+  action: DENY
+  description: "Deny login bursts over five attempts per minute from one IP"
+- id: rate-002
+  owasp: A06
+  match_type: rate
+  pattern: "/api/transfer"
+  params:
+    key: account
+    limit: 5
+    window_s: 60
+  action: DIVERT
+  description: "Divert transfer bursts over five attempts per minute per account"
