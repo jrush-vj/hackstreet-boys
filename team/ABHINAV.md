@@ -10,9 +10,9 @@ sandbox that replays suspicious ones safely, and the labelled test corpus.
 
 ## Updates from Jerush (read these first, newest at the top)
 
-### ▶ CURRENT: read this first (updated 2026-10-29, after G3)
+### ▶ CURRENT: read this first (updated 2026-10-29, after G4 prep; VulnBank Phase B assigned)
 
-State: `main` has everyone's P1 + P2 + P3 and is tagged `g3-learning`. 30/30 e2e pass (G0–G3 + honeypot console).
+State: `main` has everyone's P1–P3 and is tagged `g3-learning`. P4 corpus + scenario file pushed. 30/30 e2e pass.
 
 **Standing rules (every session, your coding agent does these without being told):**
 - Session start: `git checkout feat/abhinav-p1-gateway && git fetch origin && git merge origin/main` (merge, never rebase or force-push).
@@ -32,17 +32,54 @@ State: `main` has everyone's P1 + P2 + P3 and is tagged `g3-learning`. 30/30 e2e
 - The bank now leaks a real Python traceback with a 500 on `GET /api/accounts/<non-number>`, so your sandbox
   `stack_trace_leaked` check has something to catch. Use that path (GET) for the A10 step in `scenarios/full.yaml`.
 
-**Do now, in order (P4, due at G4 = feature freeze):**
-1. [ ] Merge `origin/main` (standing rules), then `docker compose down -v && docker compose up --build -d`,
-       `docker compose run --rm gateway pytest -q` and `pytest tests/e2e -q`: **30 pass** (G0–G3 + honeypot console).
-2. [ ] Step-5 corpus (the zero-day moment): one **new** A06 transfer-abuse item that no rule covers (it must DIVERT on first
-       sight), plus 3 variants that the learned rule must DENY. In offline mode the learned rule is the canned A06 one
-       (`shared/canned.py`: a JSON field holding 8+ punctuation characters), so make the variants fit it too.
-3. [ ] `tests/corpus/scenarios/full.yaml`: `[{step, corpus_ids, delay_ms}]` in the order of `docs/07-demo-script.md`.
-       Step 5 = first-sight item, then `delay_ms: 3000` (learning takes ~1 s with mock, longer with Kaggle), then the 3 variants.
-       Step 6 (A10) = a GET to `/api/accounts/<not-a-number>?…` that DIVERTs, so the sandbox catches the leaked stack trace.
-4. [ ] Run the full scenario 3 times (Jerush's runner, or by hand), and fix any benign item that trips DIVERT.
+**Do now, in order (VulnBank Phase B: the web front end, then P4 leftovers):**
+1. [ ] Merge `origin/main` (standing rules). Then `docker compose down -v && docker compose up --build -d` and
+       `docker compose run --rm gateway pytest -q` + `pytest tests/e2e -q`: **30 pass** on `main` at `g3-learning` and after the merge.
+2. [ ] **Phase B: VulnBank web UI** (Part 3 below). This is the big one. Do the steps in order; each one is a PR-sized commit.
+3. [ ] Corpus for the new form inputs: one benign + one malicious item per field you add (search, transfer memo, support chat,
+       login, statement URL, log memo). Use the bank request bodies in `docs/04-system-design.md` section 8.
+4. [ ] P4 leftovers: the step-5 zero-day items and `tests/corpus/scenarios/full.yaml` are done (pushed). Run the scenario
+       3 times once Jerush's runner lands and fix any benign item that DIVERTs.
 5. [ ] Prepare your speaking part: steps 2–4 of the demo.
+
+## Part 3 — VulnBank Phase B: the web front end (Abhinav)
+
+Goal: a judge can *use* the bank in a browser, and every form input goes through the gateway, so attacks typed into
+the forms are judged exactly like the API calls. Scope is the bank's own pages, served by the bank container.
+Do **not** change the gateway, the honeypot or the analyst; if you need an API change, write it under "Requests to Jerush".
+
+**Where things go (all inside `bank/`):** `bank/app/web.py` (routes that return HTML), `bank/app/templates/*.html`,
+`bank/app/static/style.css`. No npm, no build step, no CDN: plain HTML and a little JS, like the honeypot console.
+Forms post to the **same paths** as the API (`/api/login`, `/api/transfer`, …) so one code path serves both; the browser
+just sends form-encoded data, so accept form fields as well as JSON (`Form(...)` or `await request.form()`).
+
+**Pages (keep the list short; the console must not feel cluttered):**
+- [ ] `/` → redirect to `/login` if signed out, else `/accounts`.
+- [ ] `/login`: email + password form → `POST /api/login` → sets a session cookie → `/accounts`.
+- [ ] `/accounts`: the signed-in customer's accounts with balances (`GET /api/accounts/{id}`, A01 is still exploitable from the URL).
+- [ ] `/transfer`: from-account, to-account, amount, memo → `POST /api/transfer`. Shows the result; no business limits (A06).
+- [ ] `/search`: one text box → `GET /api/transactions/search?q=` and a results table (A05 SQLi through the box).
+- [ ] `/support`: chat box → `POST /api/support/chat` (A05 prompt injection; the hidden "internal note" shows in replies).
+- [ ] `/statements`: a URL box → `GET /api/statements/fetch?url=` (A01 SSRF; shows the body returned).
+- [ ] Memo on each transaction row → `POST /api/transactions/{id}/memo` (A05 log injection: the memo lands in the log line).
+- [ ] `/admin` and `/debug` stay JSON, as now (A02 is a route, not a page).
+
+**Demo mode and polish:**
+- [ ] Every page has the same header: VulnBank name, signed-in user, sign out. Nothing else. No demo controls in the bank.
+- [ ] Mark each weakness in code with `# DEMO-WEAKNESS: A0x` (the convention already in `bank/app/main.py`).
+- [ ] Readable at 1366×768: large type, one column, high contrast (headings at least 1.25× the body size).
+- [ ] Seed credentials stay as they are (`customer<N>@example.test` / `password123`); mention them on the login page
+      in small print, since the demo needs them.
+
+**Tests (must pass with `docker compose run --rm bank pytest -q`):**
+- [ ] Each page returns 200 and its form posts to the right API path.
+- [ ] Logging in through the form sets a cookie and the accounts page lists that customer's accounts.
+- [ ] The search box passes an injected string through unchanged (the weakness must really be there).
+- [ ] Bad account id through the URL still leaks the traceback (A10 unchanged).
+
+**Done when:** you can log in at http://localhost:8000/login (through the gateway) and run one benign
+transfer and one malicious search from the browser, each shows up on the honeypot console and dashboard as expected,
+and `pytest tests/e2e -q` is still green. Then write `READY TO MERGE (<date>): VulnBank Phase B` under "Requests to Jerush".
 
 ### History (all done, kept for reference: what Jerush changed in your files and why)
 
