@@ -64,13 +64,18 @@ button { cursor: pointer; }
   background: #fffefb;
 }
 .attack-panel { display: flex; flex-direction: column; gap: 38px; padding: 24px 12px; }
-.attack-button {
+.feature-box {
   min-height: 105px;
   padding: 18px 10px;
   font-size: .9rem;
   border-radius: 15px;
+  background: #fff;
+  border: 1.5px solid #353331;
+  box-shadow: none;
+  transform: none;
 }
-.attack-button.is-selected { background: #f0eadf; }
+.feature-box:hover, .feature-box:focus-visible { background: #f0eadf; box-shadow: none; transform: none; }
+.feature-box.is-selected { background: #fff; }
 .clear-button { min-height: 48px; margin-top: auto; font-size: .9rem; }
 
 .evidence-panel { min-width: 0; padding: 24px; overflow: hidden; }
@@ -103,7 +108,7 @@ button { cursor: pointer; }
 
 .info-panel { display: flex; flex-direction: column; padding: 25px 22px; }
 .info-copy { display: flex; flex-direction: column; gap: 38px; margin: 0; text-align: center; color: #554f49; font-size: .92rem; line-height: 1.45; }
-.eicar-card { width: 100%; min-height: 105px; border-color: #c9c4bc; border-radius: 15px; padding: 11px 8px; background: #f6f3ed; }
+.eicar-card { width: 100%; }
 .eicar-card.eicar-title { font-size: .9rem; font-weight: 700; letter-spacing: .12em; }
 .info-section { border-top: 1px solid #d5d0c8; margin-top: 18px; padding-top: 16px; }
 .info-section h2 { margin: 0 0 10px; font-size: 1rem; }
@@ -130,7 +135,7 @@ button { cursor: pointer; }
   .dashboard-header { flex-direction: column; padding: 16px; }
   .reference-layout { display: flex; flex-direction: column; padding: 12px; }
   .attack-panel { gap: 10px; }
-  .attack-button { min-height: 62px; }
+  .feature-box { min-height: 62px; }
   .info-panel { display: flex; }
   .info-copy { margin: 20px 0; }
   .owasp-center-grid { gap: 6px; }

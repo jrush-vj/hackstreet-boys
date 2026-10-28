@@ -189,13 +189,13 @@ export default function App() {
             <button
               key={attack}
               type="button"
-              className={`ui-button attack-button ${selectedAttack === attack ? "is-selected" : ""}`}
+              className={`ui-button feature-box ${selectedAttack === attack ? "is-selected" : ""}`}
               onClick={() => setSelectedAttack(selectedAttack === attack ? null : attack)}
             >
               {attack}
             </button>
           ))}
-          <button type="button" className="ui-button attack-button clear-button" onClick={() => setSelectedAttack(null)}>
+          <button type="button" className="ui-button feature-box clear-button" onClick={() => setSelectedAttack(null)}>
             Show All Events
           </button>
         </nav>
@@ -247,7 +247,7 @@ export default function App() {
         <aside className="info-panel">
           <div className="info-copy">
             {["EICAR", "AMTSO Security Feature Checks", "EMBER malware dataset", "CICMalDroid 2020"].map((item) => (
-              <button key={item} type="button" className={`ui-button eicar-card ${item === "EICAR" ? "eicar-title" : ""}`}>
+              <button key={item} type="button" className={`ui-button feature-box eicar-card ${item === "EICAR" ? "eicar-title" : ""}`}>
                 {item}
               </button>
             ))}
