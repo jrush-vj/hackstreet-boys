@@ -10,6 +10,7 @@ from app.engine import (
 )
 from app.main import listen_for_rule_updates, reload_active_rules
 
+from shared.canned import CANNED
 from shared.config import settings
 from shared.schemas import Rule
 
@@ -18,6 +19,7 @@ PACK_DIR = ROOT / "rules" / "packs"
 CORPUS_PATH = ROOT / "tests" / "corpus" / "corpus.jsonl"
 if not CORPUS_PATH.exists():
     CORPUS_PATH = ROOT.parent / "tests" / "corpus" / "corpus.jsonl"
+SCENARIO_PATH = CORPUS_PATH.parent / "scenarios" / "full.yaml"
 P1_PACKS = {"sqli.yaml", "prompt.yaml", "logi.yaml"}
 
 
@@ -281,7 +283,11 @@ def test_p2_corpus_items_match_their_labels():
     engine = RuleEngine()
     engine.replace_rules(load_all_pack_rules())
     redises: dict = {}
-    items = [item for item in load_corpus() if item["id"] > "c-0040"]
+    items = [
+        item
+        for item in load_corpus()
+        if item["id"] > "c-0040" and not item.get("expected_after_learning")
+    ]
 
     for item in items:
         # rate counters per OWASP category, like tests/e2e (bursts are counted within their own category)
@@ -316,3 +322,64 @@ def test_anomaly_score_is_bounded_and_benign_corpus_stays_below_threshold():
         "unseen_path",
         "unseen_params",
     }
+
+
+def test_p4_scenario_first_sight_and_learned_a06_variants():
+    scenario = yaml.safe_load(SCENARIO_PATH.read_text(encoding="utf-8"))
+    corpus = {item["id"]: item for item in load_corpus()}
+    first_sight = corpus["c-0062"]
+    variants = [corpus[item_id] for item_id in ("c-0063", "c-0064", "c-0065")]
+
+    assert [step["step"].split(".", 1)[0] for step in scenario] == [
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+        "5",
+        "6",
+        "7",
+    ]
+    assert all(
+        corpus_id in corpus for step in scenario for corpus_id in step["corpus_ids"]
+    )
+    assert scenario[3]["corpus_ids"] == [
+        "c-0056",
+        "c-0057",
+        "c-0058",
+        "c-0059",
+        "c-0060",
+        "c-0061",
+    ]
+    assert scenario[4]["corpus_ids"] == ["c-0062"]
+    assert scenario[4]["delay_ms"] == 3000
+    assert scenario[5]["corpus_ids"] == [item["id"] for item in variants]
+    assert all(item["expected_after_learning"] for item in variants)
+
+    engine = RuleEngine()
+    engine.replace_rules(load_all_pack_rules())
+    first_rule = asyncio.run(engine.evaluate(make_context(first_sight), FakeRedis()))
+    assert first_rule is None
+    assert score_request(make_context(first_sight))[0] >= settings.divert_threshold
+
+    proposal = CANNED["A06"]
+    learned_rule = Rule(
+        id="L-12345678",
+        owasp="A06",
+        source="learned",
+        description=proposal["description"],
+        **{key: value for key, value in proposal.items() if key != "description"},
+    )
+    engine.replace_rules([*load_all_pack_rules(), learned_rule])
+    for item in variants:
+        matched = asyncio.run(engine.evaluate(make_context(item), FakeRedis()))
+        assert matched is not None
+        assert matched.id == learned_rule.id
+        assert matched.action == item["expected_verdict"]
+
+
+def test_p4_a10_get_corpus_item_diverts_for_traceback_replay():
+    item = next(item for item in load_corpus() if item["id"] == "c-0066")
+    assert item["method"] == "GET"
+    assert item["path"] == "/api/accounts/!!x"
+    assert score_request(make_context(item))[0] >= settings.divert_threshold

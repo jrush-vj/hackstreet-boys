@@ -1,0 +1,24 @@
+- step: "1. Normal traffic"
+  corpus_ids: ["c-0001", "c-0002", "c-0011"]
+  delay_ms: 0
+- step: "2. Rule packs"
+  corpus_ids: ["c-0021", "c-0028", "c-0034"]
+  delay_ms: 0
+- step: "3. Access + config"
+  corpus_ids: ["c-0041", "c-0051", "c-0049"]
+  delay_ms: 0
+- step: "4. Login burst"
+  corpus_ids: ["c-0056", "c-0057", "c-0058", "c-0059", "c-0060", "c-0061"]
+  delay_ms: 0
+- step: "5. Zero-day moment - first sight"
+  corpus_ids: ["c-0062"]
+  delay_ms: 3000
+- step: "5. Zero-day moment - learned variants"
+  corpus_ids: ["c-0063", "c-0064", "c-0065"]
+  delay_ms: 0
+- step: "6. Error handling"
+  corpus_ids: ["c-0066"]
+  delay_ms: 0
+- step: "7. Wrap-up"
+  corpus_ids: ["c-0001"]
+  delay_ms: 0
