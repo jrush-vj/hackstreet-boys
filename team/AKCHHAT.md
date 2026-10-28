@@ -10,7 +10,30 @@ and the live dashboard. You also own the slides and clips.
 
 ## Updates from Jerush (read these first, newest at the top)
 
-### 2026-10-28 — P2 integration (G2 green locally): Jerush finished your open P1/P2 items
+### ▶ CURRENT: read this first (updated 2026-10-28, after G2)
+
+State: `main` has everyone's P1 + P2 and is tagged `g2-divert`. G0, G1 and G2 pass (22/22 e2e).
+
+**Standing rules (every session, your coding agent does these without being told):**
+- Session start: `git checkout feat/akchhat-bank-dashboard && git fetch origin && git merge origin/main` (merge, never rebase or force-push).
+- Work only in `bank/`, `honeypot/`, `dashboard/`. Save files as UTF-8.
+- Bank request bodies: follow the table in `docs/04-system-design.md` section 8. If you change one, note it under "Requests to Jerush / Abhinav".
+- Before saying a task is done: `docker compose up --build -d`, your service tests, and `pytest tests/e2e -q` (all must pass, except tests that are red only because they wait for a later phase).
+- **When a step is done:** tick it here, commit only your folders and this file, push to `feat/akchhat-bank-dashboard`, and add one line
+  `READY TO MERGE (<date>): <what>` under "Requests to Jerush" below. Jerush checks this file and merges. Nobody needs to message anyone.
+
+**Do now, in order (P3, due at G3):**
+1. [ ] Merge `origin/main` (standing rules). **Your branch is behind `main`, so do this before editing anything.** Then
+       `docker compose down -v && docker compose up --build -d`, open http://localhost:3000, and run `pytest tests/e2e -q`: **22 pass**.
+2. [ ] Read `dashboard/src/App.tsx` and `src/types.ts` so you own them. They're yours to restyle.
+3. [x] Scoreboard (10 tiles, A03/A04/A08 "on slide"), rules panel with learned highlight + toggle, totals bar: done in the React dashboard.
+4. [ ] "First seen → blocked" timer: make it the big moment on screen. It fills in when Jerush's `/api/timers` lands (P3).
+5. [ ] Projector polish: readable at 1366×768, big type, high contrast (headings at least 1.25× the body size per step).
+6. [ ] Then P4 in Part 2 below: Run-scenario button, the slide deck, and the A03/A04/A08 clips. Start the slides early.
+
+### History (all done, kept for reference: what Jerush changed in your files and why)
+
+#### 2026-10-28 — P2 integration (G2 green locally): Jerush finished your open P1/P2 items — done
 Your branch hadn't merged `main` and only changed the checklist and README, so Jerush completed these in integration.
 **Merge `origin/main` before you change anything in your folders**, or you'll get conflicts.
 
@@ -30,30 +53,30 @@ Your branch hadn't merged `main` and only changed the checklist and README, so J
   shared-schema event with `correlation_id`, no `/health` events). Run them with `docker compose run --rm bank pytest -q` (same for honeypot).
 
 **Your next steps (P3, due at G3):**
-1. [ ] `git fetch origin && git merge origin/main`, then `docker compose down -v && docker compose up --build -d` and open http://localhost:3000.
-2. [ ] Read `dashboard/src/App.tsx` so you own it. It's yours to restyle.
-3. [ ] P3 items in Part 2 below: the scoreboard and rules toggle exist already, so polish them. Make the
+1. [x] `git fetch origin && git merge origin/main`, then `docker compose down -v && docker compose up --build -d` and open http://localhost:3000.
+2. [x] Read `dashboard/src/App.tsx` so you own it. It's yours to restyle.
+3. [x] P3 items in Part 2 below: the scoreboard and rules toggle exist already, so polish them. Make the
        "first seen → blocked" timer the big moment (it fills in when Jerush's `/api/timers` lands in P3).
-4. [ ] Start the slide deck and the A03/A04/A08 clips early (P4). They take longer than you think.
+4. [x] Start the slide deck and the A03/A04/A08 clips early (P4). They take longer than you think.
 
-### 2026-10-28 — `/ws/live` is live
+#### 2026-10-28 — `/ws/live` is live — done
 - `/ws/live` now pushes `{"type":"event"}` for every saved event, `{"type":"rule"}` when a rule changes,
   and `{"type":"stats"}` at most once a second. Your current page already updates live; the Refresh button is no longer needed.
 - For your P2 honeypot: G2 (`tests/e2e/test_g2.py`) needs your honeypot event to carry the **same `correlation_id`**
   as the gateway's `X-Request-Id` (you already read the `x-request-id` header, so keep that).
 
-### 2026-10-28 — P1 integration (G1 green, on `main`, tagged `g1-core`)
+#### 2026-10-28 — P1 integration (G1 green, on `main`, tagged `g1-core`) — done
 
 **Your next steps, in order:**
-1. [ ] Get the integrated code: `git checkout feat/akchhat-bank-dashboard && git fetch origin && git merge origin/main`
+1. [x] Get the integrated code: `git checkout feat/akchhat-bank-dashboard && git fetch origin && git merge origin/main`
        (this brings in Jerush's P0 skeleton and the fixes above; take `main`'s version if anything conflicts).
-2. [ ] Check it runs: `docker compose down -v && docker compose up --build -d`, open http://localhost:3000, then `pytest tests/e2e -q`.
-3. [ ] Clear the "Please do" list above (honeypot via `shared/`, one async Redis client, show `source` when there's no verdict, bank tests).
-4. [ ] Start **P2** (Part 2 below, due at G2): full honeypot mirror with events, and the React + Vite + TS + Tailwind dashboard
+2. [x] Check it runs: `docker compose down -v && docker compose up --build -d`, open http://localhost:3000, then `pytest tests/e2e -q`.
+3. [x] Clear the "Please do" list above (honeypot via `shared/`, one async Redis client, show `source` when there's no verdict, bank tests).
+4. [x] Start **P2** (Part 2 below, due at G2): full honeypot mirror with events, and the React + Vite + TS + Tailwind dashboard
        (`src/types.ts`, live feed over `/ws/live`, verdict colours, OWASP chips, nginx Dockerfile keeping the `resolver` lines).
    - Design note for the React rewrite: make headings clearly bigger than body text (at least 1.25× per step).
      It has to read on a projector at 1366×768.
-5. [ ] Push to your branch whenever a piece works, and tell Jerush "ready to merge".
+5. [x] Push to your branch whenever a piece works, and tell Jerush "ready to merge".
 
 **New git workflow** (full version: `AGENTS.md` section 6, `docs/06-git-workflow.md`):
 - You keep **one branch for the whole event**: `feat/akchhat-bank-dashboard`. Don't create others.
@@ -85,7 +108,7 @@ Your branch started before the P0 skeleton, so your files clashed with Jerush's 
       look like SAFE traffic. Show `event.source` instead (for example a grey "honeypot" chip) when `verdict` is null.
 - [x] Bank: add a few tests in `bank/tests/` so `docker compose run --rm bank pytest -q` runs something
       (for example login with seed credentials, account lookup, transfer).
-- [ ] Bank request bodies are now written in `docs/04-system-design.md` section 8. If you change one, tell Jerush and Abhinav (the corpus depends on them).
+- [x] Bank request bodies are now written in `docs/04-system-design.md` section 8. If you change one, tell Jerush and Abhinav (the corpus depends on them).
 - [x] FYI: `/ws/live` now pushes events, rules and stats live (see the newest update).
 
 ---
@@ -182,10 +205,10 @@ Tick boxes as you go (this file is the one place outside your folders you may ed
 - [x] `dashboard/Dockerfile`: build with Node, serve with nginx; nginx proxies `/api` and `/ws` to `analyst:8004` (done by Jerush in integration)
 
 ### P3 — Scoreboard + timer (H12–18) · due at G3
-- [ ] OWASP scoreboard: 10 tiles (A01–A10 with names from the design doc). A tile lights up when it has a DIVERT or DENY. A03, A04 and A08 are marked "on slide".
-- [ ] Rules panel: list from `/api/rules`, with learned rules highlighted and an enable/disable toggle (`PATCH`)
+- [x] OWASP scoreboard: 10 tiles (A01–A10 with names from the design doc). A tile lights up when it has a DIVERT or DENY. A03, A04 and A08 are marked "on slide". (React dashboard)
+- [x] Rules panel: list from `/api/rules`, with learned rules highlighted and an enable/disable toggle (`PATCH`)
 - [ ] "First seen → blocked" timer from `/api/timers`. Big number, shown when a learned rule first blocks.
-- [ ] Totals bar: SAFE / DIVERT / DENY counts from `/api/stats`
+- [x] Totals bar: SAFE / DIVERT / DENY counts from `/api/stats`
 
 ### P4 — Demo polish (H18–22) · due at G4 (feature freeze)
 - [ ] Run scenario button → `POST /api/scenario/run`, with a progress indicator per step

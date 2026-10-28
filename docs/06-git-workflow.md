@@ -18,10 +18,9 @@ Ownership is in `AGENTS.md` section 2 and enforced by `.github/CODEOWNERS`.
 git checkout feat/<your-branch>
 git fetch origin && git merge origin/main     # start of every session: pick up the latest main
 # ... work only inside your folders ...
-git add <your-folder>/
+git add <your-folder>/ team/<YOU>.md          # tick the step + add "READY TO MERGE (<date>): <what>"
 git commit -m "honeypot: mirror transfer and search routes"
-git push origin feat/<your-branch>
-# then tell Jerush in the group chat: "<branch> ready to merge"
+git push origin feat/<your-branch>               # Jerush sees the READY TO MERGE line and merges
 ```
 
 - Use `git add <your-folder>/`, never `git add .` (it stops you committing someone else's files by accident).
@@ -40,7 +39,7 @@ docker compose run --rm <service> pytest -q   # gateway, analyst, mock-llm, ...
 pytest tests/e2e -q
 git push origin feat/jerush-analyst-core
 git push origin feat/jerush-analyst-core:main # only if everything above is green
-# then post in the group chat: "main updated, merge origin/main into your branch"
+# then update the "▶ CURRENT" block in team/ABHINAV.md and team/AKCHHAT.md (their agents read it)
 ```
 
 ## When you need something outside your folders

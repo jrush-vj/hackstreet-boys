@@ -16,6 +16,14 @@ You're also the only person who merges to `main`.
 | Kaggle #1 | Optional: generates rewordings of corpus items for the runner (never free-form attacks) |
 | Cloudflare | Tunnels `defense.jrushvj.dev` (API key) and `demo.jrushvj.dev` (Cloudflare Access, team emails only) |
 
+## ▶ CURRENT (updated 2026-10-28, after G2)
+
+`main` = everyone's P1 + P2, tagged `g2-divert`, 22/22 e2e green.
+1. [ ] Run `kaggle/defense.ipynb` on Kaggle #2 (secrets `DEFENSE_LLM_KEY`, `CF_TUNNEL_TOKEN`); check `https://defense.jrushvj.dev/v1/models` returns 401 without the key.
+2. [ ] Homelab: deploy `g2-divert` per `infra/homelab.md`, plus the `demo.jrushvj.dev` tunnel behind Cloudflare Access.
+3. [ ] P3 analyst loop (below). Also tag anomaly-only DIVERTs with an OWASP id when the analyst studies them; today they have `owasp: null`, so the A06 tile stays 0.
+4. [ ] Every hour: look for `READY TO MERGE` lines under "Requests to Jerush" in `team/ABHINAV.md` and `team/AKCHHAT.md`, then run the integration loop.
+
 ## Tasks
 
 ### P0 — Skeleton (H0–1) · gate G0
@@ -40,7 +48,7 @@ You're also the only person who merges to `main`.
 - [x] `WS /ws/live` broadcasting events, rules and stats
 - [ ] `kaggle/defense.ipynb`: llama.cpp server (OpenAI API) with your chosen model, an API key, and a Cloudflare tunnel to `defense.jrushvj.dev` (notebook written; **run it on Kaggle #2** with secrets `DEFENSE_LLM_KEY`, `CF_TUNNEL_TOKEN`)
 - [ ] `infra/homelab.md`: deploy steps; first homelab deploy of `g1-core` (steps written; **deploy not done yet**)
-- [ ] `tests/e2e/test_g2.py`; merge, test, tag `g2-divert`
+- [x] `tests/e2e/test_g2.py`; merge, test, tag `g2-divert`
 
 ### P3 — Learning loop (H12–18) · gate G3
 - [ ] DIVERT handler: collect gateway + sandbox + honeypot events by `correlation_id` (wait up to 2 s), build the prompt, call the LLM
@@ -68,4 +76,4 @@ and all service tests + `tests/e2e` pass. At a gate, also `git tag <gate-tag> &&
 
 ## Requests from teammates
 
-Check the "Requests to Jerush" sections in `team/ABHINAV.md` and `team/AKCHHAT.md` every hour.
+Check the "Requests to Jerush" sections in `team/ABHINAV.md` and `team/AKCHHAT.md` every hour. A `READY TO MERGE` line means: run the integration loop. After pushing `main`, rewrite their "▶ CURRENT" blocks.

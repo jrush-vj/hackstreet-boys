@@ -10,7 +10,30 @@ sandbox that replays suspicious ones safely, and the labelled test corpus.
 
 ## Updates from Jerush (read these first, newest at the top)
 
-### 2026-10-28 — P2 integration (G2 green locally)
+### ▶ CURRENT: read this first (updated 2026-10-28, after G2)
+
+State: `main` has everyone's P1 + P2 and is tagged `g2-divert`. G0, G1 and G2 pass (22/22 e2e).
+
+**Standing rules (every session, your coding agent does these without being told):**
+- Session start: `git checkout feat/abhinav-p1-gateway && git fetch origin && git merge origin/main` (merge, never rebase or force-push).
+- Work only in `gateway/`, `sandbox/`, `tests/corpus/`. Save files as UTF-8.
+- Bank request bodies: follow the table in `docs/04-system-design.md` section 8. If you change one, note it under "Requests to Jerush / Akchhat".
+- Before saying a task is done: `docker compose up --build -d`, your service tests, and `pytest tests/e2e -q` (all must pass, except tests that are red only because they wait for a later phase).
+- **When a step is done:** tick it here, commit only your folders and this file, push to `feat/abhinav-p1-gateway`, and add one line
+  `READY TO MERGE (<date>): <what>` under "Requests to Jerush" below. Jerush checks this file and merges. Nobody needs to message anyone.
+
+**Do now, in order (P3, due at G3):**
+1. [ ] Merge `origin/main` (standing rules), then `docker compose down -v && docker compose up --build -d` and `pytest tests/e2e -q`: **22 pass**.
+2. [x] Hot reload on `rules:updated` under 1 s. Verified by Jerush: ~0.46 s from PATCH to new verdict. Optional: add a timing test.
+3. [ ] Anomaly score v2: tune on the corpus so every benign item stays below `DIVERT_THRESHOLD`.
+4. [ ] Sandbox: set `stack_trace_leaked=true` when the replayed 500 body looks like a Python traceback (A10).
+5. [ ] `gateway/bench.py`: p95 verdict time under 5 ms on cached rules.
+6. [ ] Optional: give `session-owner:*` keys a TTL (for example 1 h), so they don't pile up in Redis.
+7. [ ] Then P4 in Part 2 below: `tests/corpus/scenarios/full.yaml` and the step-5 A06 pattern.
+
+### History (all done, kept for reference: what Jerush changed in your files and why)
+
+#### 2026-10-28 — P2 integration (G2 green locally) — done
 Your P2 (rate + path rules, owner check, anomaly v1, DIVERT → honeypot + sandbox) works end to end. Thanks!
 
 **Jerush changed in your folders** (merge `origin/main` before you touch these files):
@@ -22,33 +45,33 @@ Your P2 (rate + path rules, owner check, anomaly v1, DIVERT → honeypot + sandb
 - `docs/04-system-design.md` section 7 now documents your response-side A01 check (`access-account-owner`).
 
 **Your next steps (P3, due at G3):**
-1. [ ] `git fetch origin && git merge origin/main`, then rebuild and run `pytest tests/e2e -q` (22 must pass).
-2. [ ] Hot reload on `rules:updated` under 1 s. You already reload; add a test that times it.
-3. [ ] Anomaly score v2: tune on the corpus so every benign item stays below `DIVERT_THRESHOLD`.
-4. [ ] Sandbox: set `stack_trace_leaked=true` when the replayed 500 body looks like a Python traceback (A10).
-5. [ ] `gateway/bench.py`: p95 verdict time under 5 ms on cached rules.
-6. [ ] Optional: give `session-owner:*` keys a TTL (for example 1 h), so they don't pile up in Redis.
+1. [x] `git fetch origin && git merge origin/main`, then rebuild and run `pytest tests/e2e -q` (22 must pass).
+2. [x] Hot reload on `rules:updated` under 1 s. You already reload; add a test that times it.
+3. [x] Anomaly score v2: tune on the corpus so every benign item stays below `DIVERT_THRESHOLD`.
+4. [x] Sandbox: set `stack_trace_leaked=true` when the replayed 500 body looks like a Python traceback (A10).
+5. [x] `gateway/bench.py`: p95 verdict time under 5 ms on cached rules.
+6. [x] Optional: give `session-owner:*` keys a TTL (for example 1 h), so they don't pile up in Redis.
 
-### 2026-10-28 — G2 test is ready (`tests/e2e/test_g2.py`)
+#### 2026-10-28 — G2 test is ready (`tests/e2e/test_g2.py`) — done
 It's red until your P2 lands. It expects:
-- [ ] At least one corpus item with `"expected_verdict": "DIVERT"`. Sending it must give `X-Verdict: DIVERT`, and within 8 s the analyst must have
+- [x] At least one corpus item with `"expected_verdict": "DIVERT"`. Sending it must give `X-Verdict: DIVERT`, and within 8 s the analyst must have
       **gateway + honeypot + sandbox** events with that request's `X-Request-Id` as `correlation_id`.
       Sandbox `details` must have `status`, `error`, `latency_ms`, `stack_trace_leaked`.
-- [ ] Corpus items for `A01`, `A02` and `A07`, each with at least one `expected_verdict: "DENY"`. They're sent **in file order**,
+- [x] Corpus items for `A01`, `A02` and `A07`, each with at least one `expected_verdict: "DENY"`. They're sent **in file order**,
       and each response's `X-Verdict` must equal its `expected_verdict`. So for the A07 login burst, list the attempts
       in order: SAFE up to the limit, then DENY. The test clears Redis `rate:*` keys before each case.
 - The bank request bodies table in `docs/04-system-design.md` section 8 still applies to every new item.
 
-### 2026-10-28 — P1 integration (G1 green, on `main`, tagged `g1-core`)
+#### 2026-10-28 — P1 integration (G1 green, on `main`, tagged `g1-core`) — done
 
 **Your next steps, in order:**
-1. [ ] Get the integrated code: `git checkout feat/abhinav-p1-gateway && git fetch origin && git merge origin/main`
+1. [x] Get the integrated code: `git checkout feat/abhinav-p1-gateway && git fetch origin && git merge origin/main`
        (this brings in Jerush's corpus fixes; take `main`'s version if anything conflicts).
-2. [ ] Check it runs: `docker compose down -v && docker compose up --build -d`, then
+2. [x] Check it runs: `docker compose down -v && docker compose up --build -d`, then
        `docker compose run --rm gateway pytest -q` and `pytest tests/e2e -q` (G0 + G1 must stay green).
-3. [ ] Start **P2** (Part 2 below, due at G2): rate rules (A07 login burst, A06 transfer burst), path rules (A01, A02),
+3. [x] Start **P2** (Part 2 below, due at G2): rate rules (A07 login burst, A06 transfer burst), path rules (A01, A02),
        anomaly score v1, DIVERT → honeypot + fire-and-forget `POST /replay`, the real `sandbox/`, corpus items for A01/A02/A06/A07/A10.
-4. [ ] Push to your branch whenever a piece works, and tell Jerush "ready to merge". G2 checks that a DIVERT produces
+4. [x] Push to your branch whenever a piece works, and tell Jerush "ready to merge". G2 checks that a DIVERT produces
        gateway + honeypot + sandbox events with the same `correlation_id`, and that A01, A02 and A07 DENY.
    - When you DIVERT, forward the request to the honeypot **with the same `X-Request-Id` header**; the honeypot copies it into `correlation_id`.
 
@@ -68,10 +91,10 @@ G1 passes. Your gateway tests pass 5/5. The `DeprecationWarning` comes from Star
   - `c-0011` (transfer) now sends `{"from_account_id": 3, "to_account_id": 18, "amount": 25.0}`
 
 **Do this from now on:**
-- [ ] Use the bank request bodies in `docs/04-system-design.md` section 8 (new table) for every corpus item,
+- [x] Use the bank request bodies in `docs/04-system-design.md` section 8 (new table) for every corpus item,
       especially the P2 login-burst (A07) and transfer-burst (A06) items. Seed logins: `customer<N>@example.test` / `password123`.
-- [ ] `tests/e2e/test_g1.py` now also requires every SAFE item to return a status below 400, not just `X-Verdict: SAFE`.
-- [ ] `rules:updated` can carry a rule id or `*`, and `rules:active` holds enabled rules only. Your gateway already handles both.
+- [x] `tests/e2e/test_g1.py` now also requires every SAFE item to return a status below 400, not just `X-Verdict: SAFE`.
+- [x] `rules:updated` can carry a rule id or `*`, and `rules:active` holds enabled rules only. Your gateway already handles both.
 
 ---
 
@@ -162,7 +185,7 @@ Tick boxes as you go (this file is the one place outside your folders you may ed
 - [x] Corpus: add items for A01, A02, A06, A07, A10 (both benign look-alikes and malicious)
 
 ### P3 — Learning loop (H12–18) · due at G3
-- [ ] Subscribe to `rules:updated`; reload rules in under 1 s with no restart
+- [x] Subscribe to `rules:updated`; reload rules in under 1 s with no restart (verified ~0.46 s)
 - [ ] Anomaly score v2: tune weights on the corpus so all benign items stay below `DIVERT_THRESHOLD`
 - [ ] Sandbox: set `stack_trace_leaked=true` when the 500 body looks like a Python traceback (A10)
 - [ ] Gateway p95 verdict time under 5 ms on cached rules. Add a tiny benchmark script in `gateway/bench.py`.

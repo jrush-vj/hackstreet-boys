@@ -9,8 +9,10 @@ Ask your human which team member they are, or check `git config user.name`. Then
 read their file in `team/` (`ABHINAV.md`, `AKCHHAT.md` or `JERUSH.md`). That file
 lists the folders you may edit and the tasks to do.
 
-**Then read its "Updates from Jerush" section first.** It has changes made to your files and
-anything you must do before continuing. Remind your human about any unticked items there.
+**Then read the "▶ CURRENT" block at the top of its "Updates from Jerush" section and follow it.**
+It has the standing rules (merge `origin/main` first) and the ordered steps to do now. Everything under
+"History" is already done. Work through the unticked steps in order; ask your human only when a step is
+genuinely their decision.
 
 ## 2. Folder ownership (hard rule)
 
@@ -65,8 +67,10 @@ Each person has **exactly one branch** for the whole event. Never create another
 | Jerush | `feat/jerush-analyst-core` (integration branch) |
 
 - **Start of every session:** bring in the latest `main` with `git fetch origin && git merge origin/main`.
-- **When a task is done:** ask your human to commit (only their folders, `git add <folder>/`) and
-  push to their branch. Then remind them to **tell Jerush it's ready to merge**.
+- **When a task is done:** tick it in their `team/<NAME>.md`, commit (only their folders plus that file,
+  `git add <folder>/ team/<NAME>.md`), push to their branch, and add a line
+  `READY TO MERGE (<date>): <what>` under "Requests to Jerush" in that file (commit and push it too).
+  That line is how Jerush learns it's ready, so no message is needed.
 - **Never rebase or force-push.** Jerush merges your branch, so rewriting its history breaks his merge.
 - Only Jerush pushes to `main`. Don't open PRs into `main` yourself.
 - Commit message format: `<service>: <what changed>`.
