@@ -235,9 +235,12 @@ async def hp_stats(request: Request):
     }
 
 
+GROUP_NAMES = {"sqli": "SQL injection", "prompt": "Prompt injection", "logi": "Log injection"}
+
+
 def _st_rule(r) -> dict:
     return {"id": r.id, "source": r.source, "enabled": r.enabled, "hits": r.hits,
-            "category": f"{r.owasp} {OWASP_2025[r.owasp]}",
+            "category": f"{GROUP_NAMES.get(r.id.split('-')[0], OWASP_2025[r.owasp])} · {r.owasp}",
             "regex": r.pattern if r.match_type in ("regex", "header", "path") else
                      f"rate {r.pattern} > {r.params.get('limit')}/{r.params.get('window_s')}s per {r.params.get('key')}"}
 

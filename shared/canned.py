@@ -16,7 +16,8 @@ CANNED: dict[str, dict] = {
             "pattern": r"(?i)x-forwarded-proto:\s*http$",
             "description": "Login over plain HTTP"},
     "A05": {"match_type": "regex", "target": "any", "action": "DENY",
-            "pattern": r"(?i)(\bunion\b.+\bselect\b|'\s*or\s*'?1'?\s*=\s*'?1)",
+            # the DENY form of the unknown SQLi family (pack sqli-100 DIVERTs it): quote/comment + ORDER BY/HAVING/CAST/…
+            "pattern": r"(?i)(\bunion\b.+\bselect\b|'\s*(?:or|and)\s+'?\w+'?\s*=\s*'?\w+|(?:'|%27|\"|%22|`|;|%3b|--)[\s%20+]*(?:order\s+by|having|cast|null|declare)\b)",
             "description": "SQL injection tautology or UNION SELECT"},
     "A06": {"match_type": "regex", "target": "body", "action": "DENY",
             "pattern": r"\"[A-Za-z_]+\"\s*:\s*\"[^\"]*[!@#$%^&*()]{8,}",

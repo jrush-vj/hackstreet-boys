@@ -1,35 +1,94 @@
+# SQL injection pack (group: SQL). sqli-0xx = known patterns -> DENY.
+# sqli-1xx = unknown-looking SQL metacharacter + keyword -> DIVERT (sandbox + honeypot study it; the learner
+# may write a specific L-rule). DENY always wins over DIVERT in the same engine pass.
 - id: sqli-001
   owasp: A05
   match_type: regex
-  target: query
-  pattern: "(?i)(?:%27|')\\s*(?:or|and)\\s+(?:(?:%27|')?\\d+(?:%27|')?\\s*=\\s*(?:%27|')?\\d+(?:%27|')?|\\d+\\s*=\\s*\\d+)"
+  target: any
+  pattern: (?i)(?:'|%27)\s*(?:or|and)\s+(?:(?:'|%27)?\d+(?:'|%27)?\s*=\s*(?:'|%27)?\d+(?:'|%27)?|\d+\s*=\s*\d+)
   action: DENY
-  description: "SQL tautology in a query parameter"
+  description: SQL tautology on a number (1=1)
 - id: sqli-002
   owasp: A05
   match_type: regex
-  target: query
-  pattern: "(?i)\\bunion(?:%20|\\+|\\s)+select\\b"
+  target: any
+  pattern: (?i)\bunion(?:%20|\+|\s)+select\b
   action: DENY
-  description: "UNION-based SQL query manipulation"
+  description: UNION-based query
 - id: sqli-003
   owasp: A05
   match_type: regex
-  target: query
-  pattern: "(?i)(?:--|%23|#)\\s*$"
+  target: any
+  pattern: (?i)(?:--|%23|#)\s*$
   action: DENY
-  description: "SQL comment marker at the end of a parameter"
+  description: SQL comment marker at the end of the input
 - id: sqli-004
   owasp: A05
   match_type: regex
-  target: query
-  pattern: "(?i)(?:;|%3b)(?:%20|\\+|\\s)*(?:select|insert|update|delete|drop)\\b"
+  target: any
+  pattern: (?i)(?:;|%3b)(?:%20|\+|\s)*(?:select|insert|update|delete|drop)\b
   action: DENY
-  description: "Stacked SQL statement in a query parameter"
+  description: Stacked SQL statement
 - id: sqli-005
   owasp: A05
   match_type: regex
-  target: query
-  pattern: "(?i)\\b(?:sleep|benchmark|extractvalue|updatexml)\\s*\\("
+  target: any
+  pattern: (?i)\b(?:sleep|benchmark|extractvalue|updatexml)\s*\(
   action: DENY
-  description: "Time- or error-based SQL injection function"
+  description: Time- or error-based SQL function
+- id: sqli-006
+  owasp: A05
+  match_type: regex
+  target: any
+  pattern: (?i)\bunion\b(?:\s|%20|\+|/\*.*?\*/)+(?:all\s+)?select\b
+  action: DENY
+  description: UNION with comment or ALL obfuscation
+- id: sqli-007
+  owasp: A05
+  match_type: regex
+  target: any
+  pattern: (?i)\b(?:information_schema|sqlite_master|pg_catalog|mysql\.user)\b
+  action: DENY
+  description: Schema enumeration
+- id: sqli-008
+  owasp: A05
+  match_type: regex
+  target: any
+  pattern: (?i)(?:;|%3b)\s*(?:shutdown|exec|xp_cmdshell|waitfor)\b
+  action: DENY
+  description: Stacked dangerous statement
+- id: sqli-009
+  owasp: A05
+  match_type: regex
+  target: any
+  pattern: (?i)/\*!\d*|\*/\s*(?:or|and|union|select)\b
+  action: DENY
+  description: MySQL inline comment obfuscation
+- id: sqli-010
+  owasp: A05
+  match_type: regex
+  target: any
+  pattern: (?i)\b(?:load_file|into\s+(?:out|dump)file)\b
+  action: DENY
+  description: File read/write via SQL
+- id: sqli-011
+  owasp: A05
+  match_type: regex
+  target: any
+  pattern: (?i)\bwaitfor\s+delay\b
+  action: DENY
+  description: Time-based SQL Server injection
+- id: sqli-012
+  owasp: A05
+  match_type: regex
+  target: any
+  pattern: (?i)'\s*(?:or|and)\s+'?\w+'?\s*(?:=|like)\s*'?\w+
+  action: DENY
+  description: Quoted tautology on a string ('a'='a')
+- id: sqli-100
+  owasp: A05
+  match_type: regex
+  target: any
+  pattern: (?i)(?:'|%27|\"|%22|`|;|%3b|--|%2d%2d|/\*)[\s%20+]*(?:select|union|or|and|insert|update|delete|drop|exec|from|where|having|order\s+by|group\s+by|null|cast|declare)\b|\b(?:select|union|insert|update|delete|drop|exec|from|where|having)\b[^a-z0-9]{0,6}(?:'|%27|\"|%22|;|%3b|--)
+  action: DIVERT
+  description: 'Unknown SQL-looking input: quote or comment next to a SQL keyword'

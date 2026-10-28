@@ -10,6 +10,14 @@ sandbox that replays suspicious ones safely, and the labelled test corpus.
 
 ## Updates from Jerush (read these first, newest at the top)
 
+### 2026-10-29 — predefined rule groups (merge `origin/main` before touching these)
+- `gateway/rules/packs/sqli.yaml`, `prompt.yaml`, `logi.yaml` were rewritten as three groups (see `packs/README.md`):
+  known patterns DENY (`…-0xx`), unknown-looking variants DIVERT (`…-100`). `logi-004` keeps its original literal-backslash pattern.
+- `tests/corpus/corpus.jsonl`: new items **c-0067…c-0101** for the new rules. `c-0095` changed to an accented name, because an
+  apostrophe breaks the bank's search (a deliberate A05 weakness) and turned a benign G1 check into a 500.
+- `gateway/tests/test_rules.py`: the P1 coverage test now checks a subset. Full coverage moved to `gateway/tests/test_predefined.py`.
+- Your Phase B: a new search page can keep the same `q=` contract, and those apostrophe-breaking inputs stay in the corpus only as DIVERT/DENY items.
+
 ### ▶ CURRENT: read this first (updated 2026-10-29, after G4 prep; VulnBank Phase B assigned)
 
 State: `main` has everyone's P1–P3 and is tagged `g3-learning`. P4 corpus + scenario file pushed. 30/30 e2e pass.

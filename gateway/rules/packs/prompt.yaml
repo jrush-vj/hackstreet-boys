@@ -1,35 +1,86 @@
+# Prompt injection pack (group: PROMPT). prompt-0xx = known phrases -> DENY.
+# prompt-1xx = suspicious instruction-override wording -> DIVERT (honeypot + sandbox study it).
 - id: prompt-001
   owasp: A05
   match_type: regex
-  target: body
-  pattern: "(?i)ignore\\s+(?:all\\s+)?previous\\s+instructions"
+  target: any
+  pattern: (?i)ignore\s+(?:all\s+)?previous\s+instructions
   action: DENY
-  description: "Attempts to override prior instructions"
+  description: Classic 'ignore previous instructions'
 - id: prompt-002
   owasp: A05
   match_type: regex
-  target: body
-  pattern: "(?i)disregard\\s+(?:all\\s+)?(?:previous|prior)\\s+instructions"
+  target: any
+  pattern: (?i)disregard\s+(?:all\s+)?(?:previous|prior)\s+instructions
   action: DENY
-  description: "Attempts to disregard prior instructions"
+  description: '''Disregard prior instructions'''
 - id: prompt-003
   owasp: A05
   match_type: regex
-  target: body
-  pattern: "(?i)\\b(?:reveal|show|print|repeat)\\s+(?:the\\s+)?(?:system|hidden|internal)\\s+prompt\\b"
+  target: any
+  pattern: (?i)\b(?:reveal|show|print|repeat)\s+(?:the\s+)?(?:system|hidden|internal)\s+prompt\b
   action: DENY
-  description: "Requests disclosure of hidden prompt content"
+  description: Asks for the hidden system prompt
 - id: prompt-004
   owasp: A05
   match_type: regex
-  target: body
-  pattern: "(?i)\\b(?:developer|system)\\s+message\\s*:"
+  target: any
+  pattern: '(?i)\b(?:developer|system)\s+message\s*:'
   action: DENY
-  description: "Attempts to inject a privileged prompt role"
+  description: Fake developer/system message header
 - id: prompt-005
   owasp: A05
   match_type: regex
-  target: body
-  pattern: "(?i)\\bact\\s+as\\s+(?:an?\\s+)?(?:unrestricted|unfiltered|different)\\b"
+  target: any
+  pattern: (?i)\bact\s+as\s+(?:an?\s+)?(?:unrestricted|unfiltered|different)\b
   action: DENY
-  description: "Attempts to change the assistant's safety role"
+  description: Persona override
+- id: prompt-006
+  owasp: A05
+  match_type: regex
+  target: any
+  pattern: (?i)\b(?:forget|disregard|override|bypass)\s+(?:all\s+|your\s+|the\s+)?(?:rules|guidelines|safety|restrictions)\b
+  action: DENY
+  description: Override safety rules
+- id: prompt-007
+  owasp: A05
+  match_type: regex
+  target: any
+  pattern: (?i)\byou\s+are\s+now\s+(?:dan|an?\s+unrestricted)\b|developer\s+mode\s+(?:enabled|on)
+  action: DENY
+  description: Jailbreak persona / developer mode
+- id: prompt-008
+  owasp: A05
+  match_type: regex
+  target: any
+  pattern: (?i)\b(?:jailbreak|dan\s+mode)\b
+  action: DENY
+  description: Named jailbreak
+- id: prompt-009
+  owasp: A05
+  match_type: regex
+  target: any
+  pattern: (?i)\b(?:what|print|output)\s+(?:is|are)\s+your\s+(?:system|initial|hidden)\s+(?:prompt|instructions)\b
+  action: DENY
+  description: Asks for the initial instructions
+- id: prompt-010
+  owasp: A05
+  match_type: regex
+  target: any
+  pattern: (?i)\bpretend\s+(?:you\s+are|to\s+be)\s+(?:an?\s+)?(?:admin|root|developer|system)\b
+  action: DENY
+  description: Pretend to be an admin
+- id: prompt-011
+  owasp: A05
+  match_type: regex
+  target: any
+  pattern: (?i)<\|?(?:system|im_start|im_end)\|?>|\[/?inst\]
+  action: DENY
+  description: Chat-template role markers
+- id: prompt-100
+  owasp: A05
+  match_type: regex
+  target: any
+  pattern: (?i)\b(?:ignore|disregard|forget|override|bypass|pretend|reveal|unrestricted|internal\s+note|hidden\s+instructions)\b
+  action: DIVERT
+  description: Unknown instruction-override wording
