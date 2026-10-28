@@ -1,0 +1,19 @@
+- id: access-001
+  owasp: A02
+  match_type: path
+  pattern: "/admin"
+  action: DENY
+  description: "Block the unprotected admin route"
+- id: access-002
+  owasp: A02
+  match_type: path
+  pattern: "/debug"
+  action: DENY
+  description: "Block the unprotected debug route"
+- id: access-003
+  owasp: A01
+  match_type: regex
+  target: query
+  pattern: "(?i)(?:https?://)?(?:localhost|127(?:\\.\\d{1,3}){3}|10(?:\\.\\d{1,3}){3}|192\\.168(?:\\.\\d{1,3}){2}|172\\.(?:1[6-9]|2\\d|3[01])(?:\\.\\d{1,3}){2}|bank(?:-sandbox)?|gateway|honeypot|sandbox|redis|postgres|analyst|mock-llm)(?::\\d+)?(?:/|$|[?&#])"
+  action: DENY
+  description: "Block statement fetches addressed to internal hosts"

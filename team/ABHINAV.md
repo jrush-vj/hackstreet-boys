@@ -125,12 +125,12 @@ Tick boxes as you go (this file is the one place outside your folders you may ed
 - [x] `gateway/tests/test_rules.py`: every pack rule has a corpus item that hits it, and no benign item is DENYed
 
 ### P2 — DIVERT path (H6–12) · due at G2
-- [ ] Rate rules with Redis counters: login burst (A07), transfer burst (A06), keyed by IP or account
-- [ ] Path rules: `/admin` and `/debug` (A02); account id ≠ session owner (A01); statement fetch to an internal host (A01)
-- [ ] Anomaly score v1: weighted sum of length vs route baseline, special-character ratio, unseen path, unseen param names → 0..1
-- [ ] DIVERT handling: forward to `HONEYPOT_URL` and return its response; fire-and-forget `POST SANDBOX_URL/replay`
-- [ ] `sandbox/app/main.py`: `/replay` → call `BANK_SANDBOX_URL`, record status, error and latency, emit event
-- [ ] Corpus: add items for A01, A02, A06, A07, A10 (both benign look-alikes and malicious)
+- [x] Rate rules with Redis counters: login burst (A07), transfer burst (A06), keyed by IP or account
+- [x] Path rules: `/admin` and `/debug` (A02); account id ≠ session owner (A01); statement fetch to an internal host (A01)
+- [x] Anomaly score v1: weighted sum of length vs route baseline, special-character ratio, unseen path, unseen param names → 0..1
+- [x] DIVERT handling: forward to `HONEYPOT_URL` and return its response; fire-and-forget `POST SANDBOX_URL/replay`
+- [x] `sandbox/app/main.py`: `/replay` → call `BANK_SANDBOX_URL`, record status, error and latency, emit event
+- [x] Corpus: add items for A01, A02, A06, A07, A10 (both benign look-alikes and malicious)
 
 ### P3 — Learning loop (H12–18) · due at G3
 - [ ] Subscribe to `rules:updated`; reload rules in under 1 s with no restart
