@@ -8,7 +8,7 @@ gateway :8000 and dashboard :3000 are published, and the bank network stays inte
 1. Install Docker Engine + Compose plugin, git, and `cloudflared`.
 2. `git clone https://github.com/Hackfest-X-Saividya/hackstreet-boys-t2-08.git ~/sphere && cd ~/sphere`
 3. `cp .env.example .env`, then edit `.env`:
-   - `LLM_MODE=kaggle`, `DEFENSE_LLM_URL=https://defense.jrushvj.dev`, `DEFENSE_LLM_KEY=<key from the Kaggle notebook>`
+   - `LLM_MODE=kaggle`, `DEFENSE_LLM_URL=<trycloudflare URL printed by the Kaggle notebook>`, `DEFENSE_LLM_KEY=<same key as the Kaggle secret>`
    - leave everything else as in `.env.example`
 4. Cloudflare tunnel for the dashboard (token stays on this machine, never in git):
    ```bash
@@ -47,7 +47,7 @@ curl -s localhost:3000/health && curl -s localhost:8000/health
 
 | Mode | `.env` | When |
 |---|---|---|
-| `kaggle` | `DEFENSE_LLM_URL=https://defense.jrushvj.dev` + key | Normal demo (`kaggle/defense.ipynb` running) |
+| `kaggle` | `DEFENSE_LLM_URL=https://<random>.trycloudflare.com` (new each Kaggle run) + key | Normal demo (`kaggle/defense.ipynb` running) |
 | `local` | `LLM_MODE=local`, `LOCAL_LLM_URL=http://host.docker.internal:8080` | Kaggle or tunnel down |
 | offline | `DEMO_OFFLINE=1` | Local model fails too (canned rules) |
 

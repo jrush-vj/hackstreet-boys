@@ -12,14 +12,14 @@ You're also the only person who merges to `main`.
 |---|---|
 | Your laptop (Claude Code) | Merging, e2e tests, building and tagging releases |
 | Homelab LOQ | `docker compose -f docker-compose.yml up -d` on tagged builds; local fallback LLM (llama.cpp on the RTX 4060, port 8080) |
-| Kaggle #2 | Defense LLM, OpenAI-compatible server, behind `defense.jrushvj.dev` |
+| Kaggle #2 | Defense LLM, OpenAI-compatible server, behind a `*.trycloudflare.com` quick tunnel (no domain) |
 | Kaggle #1 | Optional: generates rewordings of corpus items for the runner (never free-form attacks) |
-| Cloudflare | Tunnels `defense.jrushvj.dev` (API key) and `demo.jrushvj.dev` (Cloudflare Access, team emails only) |
+| Cloudflare | Tunnel `demo.jrushvj.dev` (Cloudflare Access, team emails only) |
 
 ## ▶ CURRENT (updated 2026-10-28, after G2)
 
 `main` = everyone's P1 + P2, tagged `g2-divert`, 22/22 e2e green.
-1. [ ] Run `kaggle/defense.ipynb` on Kaggle #2 (secrets `DEFENSE_LLM_KEY`, `CF_TUNNEL_TOKEN`); check `https://defense.jrushvj.dev/v1/models` returns 401 without the key.
+1. [ ] Run `kaggle/defense.ipynb` on Kaggle #2 (secret `DEFENSE_LLM_KEY` only); it prints the `trycloudflare.com` URL and checks that it returns 401 without the key.
 2. [ ] Homelab: deploy `g2-divert` per `infra/homelab.md`, plus the `demo.jrushvj.dev` tunnel behind Cloudflare Access.
 3. [ ] P3 analyst loop (below). Also tag anomaly-only DIVERTs with an OWASP id when the analyst studies them; today they have `owasp: null`, so the A06 tile stays 0.
 4. [ ] Every hour: look for `READY TO MERGE` lines under "Requests to Jerush" in `team/ABHINAV.md` and `team/AKCHHAT.md`, then run the integration loop.
@@ -46,7 +46,7 @@ You're also the only person who merges to `main`.
 
 ### P2 — DIVERT + infra (H6–12) · gate G2
 - [x] `WS /ws/live` broadcasting events, rules and stats
-- [ ] `kaggle/defense.ipynb`: llama.cpp server (OpenAI API) with your chosen model, an API key, and a Cloudflare tunnel to `defense.jrushvj.dev` (notebook written; **run it on Kaggle #2** with secrets `DEFENSE_LLM_KEY`, `CF_TUNNEL_TOKEN`)
+- [ ] `kaggle/defense.ipynb`: llama.cpp server (OpenAI API) with your chosen model, an API key, and a Cloudflare quick tunnel (`*.trycloudflare.com`) (notebook written; **run it on Kaggle #2** with secret `DEFENSE_LLM_KEY`)
 - [ ] `infra/homelab.md`: deploy steps; first homelab deploy of `g1-core` (steps written; **deploy not done yet**)
 - [x] `tests/e2e/test_g2.py`; merge, test, tag `g2-divert`
 

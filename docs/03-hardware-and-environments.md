@@ -26,7 +26,7 @@ Teammates never need homelab, Kaggle or Cloudflare access. Mock mode covers it.
 
 ```
 Internet ──► Cloudflare ──► demo.jrushvj.dev     ──► homelab: dashboard :3000 (behind Cloudflare Access)
-                        └──► defense.jrushvj.dev ──► Kaggle #2 LLM server (API key required)
+                        Kaggle #2 LLM server ◄── https://<random>.trycloudflare.com quick tunnel (API key required)
 
 homelab Docker:
   net "edge"     : gateway, dashboard, analyst, runner, mock-llm
@@ -35,7 +35,7 @@ homelab Docker:
 
 - Only the dashboard is exposed through Cloudflare. **Never** tunnel the gateway, bank or honeypot.
 - The bank network is `internal: true`, so the deliberately weak app can't reach the internet.
-- `analyst` (on `edge`) is the only service that calls out to `defense.jrushvj.dev`.
+- `analyst` (on `edge`) is the only service that calls out to the Kaggle LLM (`DEFENSE_LLM_URL`, a `*.trycloudflare.com` URL that changes every Kaggle run).
 
 ## Memory budget (homelab, demo mode)
 

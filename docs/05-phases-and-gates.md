@@ -54,7 +54,7 @@ gate is green. Bug fixes for the current phase can continue.
 - Abhinav: rate rules (A07 login burst, A06 transfer burst), path rules (A01, A02),
   anomaly score v1, sandbox `/replay`, DIVERT routing to the honeypot.
 - Akchhat: honeypot with full route mirror + events; dashboard live feed over `/ws/live`, verdict colours, OWASP tag chips.
-- Jerush: `/ws/live`, Kaggle #2 defense LLM server, Cloudflare tunnel `defense.jrushvj.dev`,
+- Jerush: `/ws/live`, Kaggle #2 defense LLM server, Cloudflare quick tunnel (`*.trycloudflare.com`),
   first homelab deploy of `g1-core`.
 
 **You get after P2**
