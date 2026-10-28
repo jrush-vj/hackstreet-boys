@@ -70,7 +70,7 @@ button { cursor: pointer; }
   font-size: .9rem;
   border-radius: 15px;
 }
-.attack-button.is-selected { border-width: 2px; }
+.attack-button.is-selected { background: #f0eadf; }
 .clear-button { min-height: 48px; margin-top: auto; font-size: .9rem; }
 
 .evidence-panel { min-width: 0; padding: 24px; overflow: hidden; }
