@@ -10,6 +10,16 @@ sandbox that replays suspicious ones safely, and the labelled test corpus.
 
 ## Updates from Jerush (read these first, newest at the top)
 
+### 2026-10-28 — G2 test is ready (`tests/e2e/test_g2.py`)
+It's red until your P2 lands. It expects:
+- [ ] At least one corpus item with `"expected_verdict": "DIVERT"`. Sending it must give `X-Verdict: DIVERT`, and within 8 s the analyst must have
+      **gateway + honeypot + sandbox** events with that request's `X-Request-Id` as `correlation_id`.
+      Sandbox `details` must have `status`, `error`, `latency_ms`, `stack_trace_leaked`.
+- [ ] Corpus items for `A01`, `A02` and `A07`, each with at least one `expected_verdict: "DENY"`. They're sent **in file order**,
+      and each response's `X-Verdict` must equal its `expected_verdict`. So for the A07 login burst, list the attempts
+      in order: SAFE up to the limit, then DENY. The test clears Redis `rate:*` keys before each case.
+- The bank request bodies table in `docs/04-system-design.md` section 8 still applies to every new item.
+
 ### 2026-10-28 — P1 integration (G1 green, on `main`, tagged `g1-core`)
 
 **Your next steps, in order:**

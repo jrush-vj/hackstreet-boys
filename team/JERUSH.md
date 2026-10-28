@@ -27,7 +27,7 @@ You're also the only person who merges to `main`.
 - [x] `mock-llm` with canned `RuleProposal`s per OWASP id
 - [x] `docker-compose.yml` (networks `edge` + `internal` with `internal: true`, memory limits, health checks), `docker-compose.override.yml` (dev ports + edge attach), `.env.example`, `.gitignore`
 - [x] `.github/CODEOWNERS` `.github/pull_request_template.md`
-- [ ] Confirm both teammates have the stack running → tag `p0-skeleton`
+- [x] Confirm both teammates have the stack running → tag `p0-skeleton`
 
 ### P1 — Core path (H1–6) · gate G1
 - [x] `analyst/migrations/001_init.sql` (design doc section 11); run on start
@@ -37,7 +37,7 @@ You're also the only person who merges to `main`.
 - [x] `tests/e2e/test_g1.py`; merge, test, tag `g1-core`
 
 ### P2 — DIVERT + infra (H6–12) · gate G2
-- [ ] `WS /ws/live` broadcasting events, rules and stats
+- [x] `WS /ws/live` broadcasting events, rules and stats
 - [ ] `kaggle/defense.ipynb`: llama.cpp server (OpenAI API) with your chosen model, an API key, and a Cloudflare tunnel to `defense.jrushvj.dev`
 - [ ] `infra/homelab.md`: deploy steps; first homelab deploy of `g1-core`
 - [ ] `tests/e2e/test_g2.py`; merge, test, tag `g2-divert`

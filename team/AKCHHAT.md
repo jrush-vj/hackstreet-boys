@@ -10,6 +10,12 @@ and the live dashboard. You also own the slides and clips.
 
 ## Updates from Jerush (read these first, newest at the top)
 
+### 2026-10-28 — `/ws/live` is live
+- `/ws/live` now pushes `{"type":"event"}` for every saved event, `{"type":"rule"}` when a rule changes,
+  and `{"type":"stats"}` at most once a second. Your current page already updates live; the Refresh button is no longer needed.
+- For your P2 honeypot: G2 (`tests/e2e/test_g2.py`) needs your honeypot event to carry the **same `correlation_id`**
+  as the gateway's `X-Request-Id` (you already read the `x-request-id` header, so keep that).
+
 ### 2026-10-28 — P1 integration (G1 green, on `main`, tagged `g1-core`)
 
 **Your next steps, in order:**
@@ -54,7 +60,7 @@ Your branch started before the P0 skeleton, so your files clashed with Jerush's 
 - [ ] Bank: add a few tests in `bank/tests/` so `docker compose run --rm bank pytest -q` runs something
       (for example login with seed credentials, account lookup, transfer).
 - [ ] Bank request bodies are now written in `docs/04-system-design.md` section 8. If you change one, tell Jerush and Abhinav (the corpus depends on them).
-- [ ] FYI: `/ws/live` only sends stats when you connect, for now. Live event and rule pushes come with Jerush's P2. Until then, the Refresh button works.
+- [x] FYI: `/ws/live` now pushes events, rules and stats live (see the newest update).
 
 ---
 

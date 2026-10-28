@@ -1,6 +1,6 @@
 """Analyst: consumes `events`, persists to Postgres, owns the rules, serves the dashboard API.
 Contracts: docs/04-system-design.md sections 6, 8 (analyst), 9, 11.
-P1: events, stats, rules are real. /analyze, timers, scenario and /ws/live are still P0 stubs."""
+P1/P2: events, stats, rules and /ws/live are real. /analyze, timers and scenario are still stubs."""
 
 import asyncio
 import uuid
@@ -18,6 +18,7 @@ from shared.owasp import OWASP_2025
 from shared.schemas import Event, Rule
 
 from app import consumer, store
+from app.live import Hub
 
 PACKS_DIR = Path("/app/packs")  # gateway/rules/packs, mounted read-only by compose
 
@@ -28,10 +29,15 @@ async def lifespan(app: FastAPI):
     app.state.redis = aioredis.from_url(settings.redis_url, decode_responses=True)
     await store.migrate(app.state.pool)
     await store.load_packs(app.state.pool, app.state.redis, PACKS_DIR)
-    task = asyncio.create_task(consumer.run(app.state.pool, app.state.redis))
+    app.state.hub = hub = Hub()
+    tasks = [
+        asyncio.create_task(consumer.run(app.state.pool, app.state.redis, on_event=hub.on_event)),
+        asyncio.create_task(hub.stats_loop(lambda: store.stats(app.state.pool, OWASP_2025))),
+    ]
     store.log("analyst started", llm_mode=settings.llm_mode)
     yield
-    task.cancel()
+    for t in tasks:
+        t.cancel()
     await app.state.redis.aclose()
     await app.state.pool.close()
 
@@ -70,6 +76,7 @@ async def patch_rule(rule_id: str, body: RulePatch, request: Request):
     if rule is None:
         raise HTTPException(404, f"no rule {rule_id}")
     await store.publish_rule(request.app.state.redis, rule)
+    await request.app.state.hub.on_rule(rule)
     return rule
 
 
@@ -91,9 +98,13 @@ def scenario_run(body: dict):
 @app.websocket("/ws/live")
 async def live(ws: WebSocket):
     await ws.accept()
+    hub = ws.app.state.hub
     try:
         await ws.send_json({"type": "stats", "data": await store.stats(ws.app.state.pool, OWASP_2025)})
+        hub.clients.add(ws)
         while True:
-            await asyncio.sleep(30)
+            await ws.receive_text()  # clients don't send; this just notices the disconnect
     except WebSocketDisconnect:
         pass
+    finally:
+        hub.clients.discard(ws)
