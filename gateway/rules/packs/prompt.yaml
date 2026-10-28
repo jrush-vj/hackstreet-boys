@@ -1,0 +1,35 @@
+- id: prompt-001
+  owasp: A05
+  match_type: regex
+  target: body
+  pattern: "(?i)ignore\\s+(?:all\\s+)?previous\\s+instructions"
+  action: DENY
+  description: "Attempts to override prior instructions"
+- id: prompt-002
+  owasp: A05
+  match_type: regex
+  target: body
+  pattern: "(?i)disregard\\s+(?:all\\s+)?(?:previous|prior)\\s+instructions"
+  action: DENY
+  description: "Attempts to disregard prior instructions"
+- id: prompt-003
+  owasp: A05
+  match_type: regex
+  target: body
+  pattern: "(?i)\\b(?:reveal|show|print|repeat)\\s+(?:the\\s+)?(?:system|hidden|internal)\\s+prompt\\b"
+  action: DENY
+  description: "Requests disclosure of hidden prompt content"
+- id: prompt-004
+  owasp: A05
+  match_type: regex
+  target: body
+  pattern: "(?i)\\b(?:developer|system)\\s+message\\s*:"
+  action: DENY
+  description: "Attempts to inject a privileged prompt role"
+- id: prompt-005
+  owasp: A05
+  match_type: regex
+  target: body
+  pattern: "(?i)\\bact\\s+as\\s+(?:an?\\s+)?(?:unrestricted|unfiltered|different)\\b"
+  action: DENY
+  description: "Attempts to change the assistant's safety role"
