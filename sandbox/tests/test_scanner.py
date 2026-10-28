@@ -1,8 +1,9 @@
-"""Static upload scanner: docker compose run --rm sandbox pytest -q
+"""Static upload scanner (zero-day model: no malware signatures): docker compose run --rm sandbox pytest -q
 Archives are built in memory; nothing is extracted or executed."""
 
 import io
 import os
+import subprocess
 import zipfile
 
 from app.main import run_scanner
@@ -19,25 +20,28 @@ def zipped(files: dict[str, bytes]) -> bytes:
     return buf.getvalue()
 
 
-def test_eicar_zip_is_denied_as_known_malware():
+def test_unknown_eicar_zip_diverts_as_zero_day_and_names_the_indicator():
+    # no signature: the .com entry is an executable, so the archive is studied, not denied
     r = scan_bytes(zipped({"eicar.com": EICAR}))
-    assert r["verdict"] == "DENY" and r["rule_id"] == "malware-eicar" and r["score"] == 1.0
-    assert r["components"]["signature"] == 1.0 and "EICAR" in r["findings"][0]
+    assert r["verdict"] == "DIVERT" and r["rule_id"] == "file-anomaly"
+    assert r["components"]["dangerous_content"] == 0.75
+    assert r["indicators"] == ["eicar.com"]
 
 
-def test_eicar_in_plain_body_is_denied():
-    assert scan_bytes(EICAR)["verdict"] == "DENY"
+def test_eicar_text_without_an_archive_is_not_a_known_threat():
+    # the scanner has no signature list; a plain 68-byte text file is simply SAFE
+    r = scan_bytes(EICAR)
+    assert r["verdict"] == "SAFE" and r["score"] == 0.0 and "signature" not in r["components"]
 
 
 def test_clean_zip_is_safe_with_no_score():
     r = scan_bytes(zipped({"statement-march.txt": b"Opening balance 100.00\n" * 10}))
-    assert r["verdict"] == "SAFE" and r["score"] == 0.0 and r["entries"] == 1
+    assert r["verdict"] == "SAFE" and r["score"] == 0.0 and r["entries"] == 1 and r["indicators"] == []
 
 
 def test_executable_inside_zip_diverts():
     r = scan_bytes(zipped({"invoice.pdf.exe": b"MZ" + os.urandom(200)}))
-    assert r["verdict"] == "DIVERT" and r["rule_id"] == "file-anomaly"
-    assert r["components"]["dangerous_content"] == 0.75
+    assert r["verdict"] == "DIVERT" and r["components"]["dangerous_content"] == 0.75
 
 
 def test_script_inside_zip_diverts():
@@ -74,13 +78,11 @@ def test_random_body_is_flagged_as_packed_but_stays_below_threshold():
 
 
 def test_child_process_scanner_matches_in_process_result():
-    data = zipped({"eicar.com": EICAR})
-    assert run_scanner(data)["verdict"] == "DENY"
+    assert run_scanner(zipped({"eicar.com": EICAR}))["verdict"] == "DIVERT"
     assert run_scanner(zipped({"ok.txt": b"hello"}))["verdict"] == "SAFE"
 
 
 def test_child_failure_is_fail_closed(monkeypatch):
-    import subprocess
     import app.main as sandbox_main
 
     def boom(*args, **kwargs):

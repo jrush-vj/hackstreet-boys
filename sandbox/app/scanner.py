@@ -1,12 +1,14 @@
 """Static file scanner for uploads. Runs in a child process (see main.py /scan) with memory and CPU limits.
 
-Nothing in an upload is executed, and no payload is ever written to disk: archives are read from memory
-through zipfile and only inspected (names, sizes, flags, an EICAR signature search, entropy of a sample).
+The scanner knows no malware signatures: an upload is unknown until the system has learned it. It only scores
+structure and content (the same idea as gateway/app/anomaly.py: named categories with weights).
 
-Output mirrors gateway/app/anomaly.py: named components with weights, a bounded total score, and a verdict:
-  DENY    known malware signature (EICAR test string)  -> rule "malware-eicar"
-  DIVERT  score >= DIVERT_THRESHOLD                    -> honeypot + sandbox study, learner may add a rule
-  SAFE    otherwise                                    -> forwarded to the bank
+Nothing in an upload is executed, and no payload is written to disk: archives are read from memory with zipfile.
+
+Verdicts:
+  DIVERT  score >= DIVERT_THRESHOLD -> honeypot + sandbox study it; the learner may add a DENY rule
+  SAFE    otherwise                 -> forwarded to the bank
+A learned rule (from `indicators`, the dangerous entry names) is what later blocks the same upload.
 """
 
 import hashlib
@@ -17,7 +19,6 @@ import os
 import sys
 import zipfile
 
-EICAR = rb"X5O!P%@AP[4\PZX54(P^)7CC)7}$EICAR-STANDARD-ANTIVIRUS-TEST-FILE!$H+H*"
 DIVERT_THRESHOLD = float(os.getenv("DIVERT_THRESHOLD", "0.7"))
 
 MAX_ENTRIES = 200
@@ -25,6 +26,7 @@ MAX_UNCOMPRESSED = 50 * 1024 * 1024
 MAX_RATIO = 100
 ENTROPY_SAMPLE = 64 * 1024
 ENTROPY_LIMIT = 7.4
+MAX_INDICATOR = 200
 
 # category weights (sum capped at 1.0, like the request anomaly score)
 WEIGHTS = {
@@ -56,14 +58,16 @@ def _ext(name: str) -> str:
 
 def scan_bytes(data: bytes) -> dict:
     findings: list[str] = []
+    indicators: list[str] = []  # names of dangerous entries, as they appear in the archive headers
     components: dict[str, float] = {}
 
-    def hit(category: str, kind: str, why: str) -> None:
+    def hit(category: str, kind: str, why: str, indicator: str | None = None) -> None:
         w = WEIGHTS[category][kind]
         components[category] = min(1.0, components.get(category, 0.0) + w)
         findings.append(why)
+        if indicator and indicator not in indicators:
+            indicators.append(indicator[:MAX_INDICATOR])
 
-    signature = EICAR in data
     is_zip = data[:4] == b"PK\x03\x04"
     entries = 0
     if is_zip:
@@ -85,12 +89,12 @@ def scan_bytes(data: bytes) -> dict:
                 name = info.filename
                 parts = name.replace("\\", "/").split("/")
                 if name.startswith(("/", "\\")) or ".." in parts or ":" in name:
-                    hit("archive_structure", "traversal", f"path traversal entry: {name[:80]}")
+                    hit("archive_structure", "traversal", f"path traversal entry: {name[:80]}", name)
                 ext = _ext(name)
                 if ext in EXEC_EXT:
-                    hit("dangerous_content", "executable", f"executable inside archive: {name[:80]}")
+                    hit("dangerous_content", "executable", f"executable inside archive: {name[:80]}", name)
                 elif ext in SCRIPT_EXT:
-                    hit("dangerous_content", "script", f"script inside archive: {name[:80]}")
+                    hit("dangerous_content", "script", f"script inside archive: {name[:80]}", name)
                 elif ext in MACRO_EXT:
                     hit("dangerous_content", "macro_office", f"macro-enabled document: {name[:80]}")
                 elif ext in NESTED_EXT:
@@ -105,28 +109,21 @@ def scan_bytes(data: bytes) -> dict:
                         payload = zf.read(info)
                     except (RuntimeError, zipfile.BadZipFile, NotImplementedError, ValueError):
                         continue  # encrypted or unsupported method: already flagged above if encrypted
-                    if EICAR in payload:
-                        signature = True
                     if len(payload) > 4096 and _entropy(payload[:ENTROPY_SAMPLE]) > ENTROPY_LIMIT:
                         hit("packing", "high_entropy", f"high-entropy payload (packed or encrypted): {info.filename[:80]}")
     elif len(data) > 4096 and _entropy(data[:ENTROPY_SAMPLE]) > ENTROPY_LIMIT:
         hit("packing", "high_entropy", "high-entropy body (packed or encrypted)")
 
-    if signature:
-        findings.insert(0, "known malware signature: EICAR test file")
-        verdict, rule_id, score = "DENY", "malware-eicar", 1.0
-        components = {"signature": 1.0, **components}
+    score = round(min(sum(components.values()), 1.0), 4)
+    if score >= DIVERT_THRESHOLD:
+        verdict, rule_id = "DIVERT", "file-anomaly"
     else:
-        score = round(min(sum(components.values()), 1.0), 4)
-        if score >= DIVERT_THRESHOLD:
-            verdict, rule_id = "DIVERT", "file-anomaly"
-        else:
-            verdict, rule_id = "SAFE", None
+        verdict, rule_id = "SAFE", None
 
     return {
         "verdict": verdict, "rule_id": rule_id, "score": score,
         "components": {k: round(v, 4) for k, v in components.items()},
-        "findings": findings[:20], "entries": entries, "size": len(data),
+        "findings": findings[:20], "indicators": indicators[:10], "entries": entries, "size": len(data),
         "sha256": hashlib.sha256(data).hexdigest(),
     }
 

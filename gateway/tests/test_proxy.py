@@ -257,6 +257,6 @@ def test_upload_detection_only_for_archives_and_eicar():
     from app.main import looks_like_upload, ZIP_MAGIC
     assert looks_like_upload("application/zip", b"abc")
     assert looks_like_upload("text/plain", ZIP_MAGIC + b"rest")
-    assert looks_like_upload("text/plain", b"x EICAR-STANDARD-ANTIVIRUS-TEST-FILE y")
+    assert not looks_like_upload("text/plain", b"plain text, no archive")  # not an upload: no zip signature
     assert not looks_like_upload("application/json", b'{"a": 1}')
     assert not looks_like_upload("application/zip", b"")

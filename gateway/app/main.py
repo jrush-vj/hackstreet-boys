@@ -156,7 +156,7 @@ def looks_like_upload(content_type: str, body: bytes) -> bool:
     if not body:
         return False
     media = content_type.split(";", 1)[0].strip().lower()
-    return media in UPLOAD_TYPES or body[:4] == ZIP_MAGIC or b"EICAR-STANDARD-ANTIVIRUS" in body
+    return media in UPLOAD_TYPES or body[:4] == ZIP_MAGIC
 
 
 ZIP_MAGIC = bytes([0x50, 0x4B, 0x03, 0x04])  # "PK\x03\x04", the start of every zip
@@ -235,8 +235,6 @@ async def proxy(request: Request, path: str = ""):
     # uploads are judged by the sandbox's file scanner instead of the text rules and request score
     upload = looks_like_upload(request.headers.get("content-type", ""), body)
     file_scan = await scan_upload(request.app, body) if upload else None
-    if upload:
-        context = RequestContext(path=context.path, query=context.query, headers=context.headers, body="", ip=ip)
     rule = await request.app.state.engine.evaluate(context, request.app.state.redis)
     verdict = rule.action if rule else "SAFE"
     matched_owasp = rule.owasp if rule else None
