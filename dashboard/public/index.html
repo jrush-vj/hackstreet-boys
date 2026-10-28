@@ -1,14 +1,115 @@
 <!doctype html>
 <html lang="en">
-<head><meta charset="utf-8"><title>Secure Sphere</title></head>
-<body style="font-family:system-ui;background:#0b0f14;color:#e6edf3;padding:2rem">
-  <h1>Secure Sphere dashboard</h1>
-  <p>P0 placeholder. Analyst stats via <code>/api/stats</code>:</p>
-  <pre id="stats">loading…</pre>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Secure Sphere</title>
+  <style>
+    :root { color-scheme: dark; font-family: system-ui, sans-serif; }
+    body { margin: 0; background: #0b0f14; color: #e6edf3; }
+    header { padding: 1.25rem 2rem; border-bottom: 1px solid #27313d; }
+    h1, h2, p { margin: 0; }
+    main { display: grid; gap: 1rem; grid-template-columns: 2fr 1fr; padding: 1rem 2rem; }
+    section { background: #111820; border: 1px solid #27313d; border-radius: 8px; padding: 1rem; }
+    .totals, .owasp { display: grid; gap: .5rem; grid-template-columns: repeat(3, 1fr); margin-top: 1rem; }
+    .owasp { grid-template-columns: repeat(5, 1fr); }
+    .card { background: #1a2430; border-radius: 6px; padding: .65rem; }
+    .card strong { display: block; font-size: 1.35rem; }
+    .feed { display: grid; gap: .5rem; margin-top: 1rem; max-height: 55vh; overflow: auto; }
+    .event { border-left: 4px solid #64748b; background: #1a2430; padding: .65rem; }
+    .event.SAFE { border-color: #22c55e; } .event.DIVERT { border-color: #f59e0b; }
+    .event.DENY { border-color: #ef4444; } .muted { color: #9aa8b7; font-size: .85rem; }
+    button { background: #2563eb; border: 0; border-radius: 5px; color: white; cursor: pointer; padding: .5rem .75rem; }
+    ul { list-style: none; margin: .75rem 0 0; padding: 0; } li { border-bottom: 1px solid #27313d; padding: .5rem 0; }
+    @media (max-width: 900px) { main { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+  <header><h1>Secure Sphere</h1><p class="muted">Zero-day detection gateway</p></header>
+  <main>
+    <section>
+      <h2>Live feed</h2>
+      <div id="feed" class="feed"><p class="muted">Waiting for events…</p></div>
+    </section>
+    <aside>
+      <section>
+        <h2>Totals</h2>
+        <div id="totals" class="totals"></div>
+      </section>
+      <section style="margin-top:1rem">
+        <h2>OWASP coverage</h2>
+        <div id="owasp" class="owasp"></div>
+      </section>
+      <section style="margin-top:1rem">
+        <h2>Rules</h2>
+        <ul id="rules"><li class="muted">Loading…</li></ul>
+      </section>
+      <section style="margin-top:1rem">
+        <h2>Timers</h2>
+        <ul id="timers"><li class="muted">Loading…</li></ul>
+        <button id="refresh">Refresh</button>
+      </section>
+    </aside>
+  </main>
   <script>
-    fetch("/api/stats").then(r => r.json())
-      .then(d => document.getElementById("stats").textContent = JSON.stringify(d, null, 2))
-      .catch(e => document.getElementById("stats").textContent = "analyst unreachable: " + e);
+    const verdicts = ["SAFE", "DIVERT", "DENY"];
+    const owaspIds = ["A01", "A02", "A03", "A04", "A05", "A06", "A07", "A08", "A09", "A10"];
+    const $ = id => document.getElementById(id);
+    const text = value => String(value ?? "");
+
+    function renderStats(stats) {
+      const totals = stats.totals || {};
+      $("totals").innerHTML = verdicts.map(v =>
+        `<div class="card"><span>${v}</span><strong>${totals[v] || 0}</strong></div>`).join("");
+      const coverage = stats.owasp || {};
+      $("owasp").innerHTML = owaspIds.map(id => {
+        const item = coverage[id] || {};
+        const hits = (item.DIVERT || 0) + (item.DENY || 0);
+        return `<div class="card"><span>${id}</span><strong>${hits}</strong></div>`;
+      }).join("");
+    }
+
+    function addEvent(event) {
+      const request = event.request || {};
+      const verdict = event.verdict || "SAFE";
+      const item = document.createElement("article");
+      item.className = `event ${verdict}`;
+      item.innerHTML = `<strong>${verdict} · ${text(event.owasp) || "unclassified"}</strong>
+        <div>${text(request.method)} ${text(request.path)}</div>
+        <div class="muted">${text(event.rule_id) || "No rule"} · ${new Date(event.ts || Date.now()).toLocaleTimeString()}</div>`;
+      $("feed").prepend(item);
+      while ($("feed").children.length > 100) $("feed").lastElementChild.remove();
+    }
+
+    async function refresh() {
+      const [stats, events, rules, timers] = await Promise.all([
+        fetch("/api/stats").then(r => r.json()),
+        fetch("/api/events?limit=50").then(r => r.json()),
+        fetch("/api/rules").then(r => r.json()),
+        fetch("/api/timers").then(r => r.json())
+      ]);
+      renderStats(stats);
+      $("feed").innerHTML = "";
+      events.slice().reverse().forEach(addEvent);
+      $("rules").innerHTML = rules.length ? rules.map(rule =>
+        `<li><strong>${text(rule.id)}</strong> · ${text(rule.action)}<br><span class="muted">${text(rule.description)}</span></li>`
+      ).join("") : '<li class="muted">No active rules</li>';
+      $("timers").innerHTML = timers.length ? timers.map(timer =>
+        `<li><strong>${text(timer.rule_id)}</strong> · ${text(timer.seconds)}s</li>`
+      ).join("") : '<li class="muted">No learned-rule timers</li>';
+    }
+
+    $("refresh").addEventListener("click", () => refresh().catch(showError));
+    function showError(error) { $("feed").innerHTML = `<p class="muted">Analyst unreachable: ${text(error.message)}</p>`; }
+    refresh().catch(showError);
+    const protocol = location.protocol === "https:" ? "wss:" : "ws:";
+    const socket = new WebSocket(`${protocol}//${location.host}/ws/live`);
+    socket.onmessage = message => {
+      const update = JSON.parse(message.data);
+      if (update.type === "event") addEvent(update.data);
+      if (update.type === "stats") renderStats(update.data);
+      if (update.type === "rule" || update.type === "stats") refresh().catch(showError);
+    };
   </script>
 </body>
 </html>

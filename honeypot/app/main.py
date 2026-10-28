@@ -73,7 +73,15 @@ def login(payload: LoginRequest) -> dict[str, Any]:
 
 @app.get("/api/accounts/{account_id}")
 def account(account_id: int) -> dict[str, Any]:
-    return {"account": {"id": account_id, "account_number": f"TRAP-{account_id:08d}", "balance": 5000.0, "customer_id": 1}}
+    return {
+        "account": {
+            "id": account_id,
+            "account_number": f"TRAP-{account_id:08d}",
+            "balance": 5000.0,
+            "customer_id": 1,
+            "customer_name": "Demo Customer",
+        }
+    }
 
 
 @app.post("/api/transfer")
@@ -83,7 +91,19 @@ def transfer(payload: TransferRequest) -> dict[str, Any]:
 
 @app.get("/api/transactions/search")
 def search_transactions(q: str = "") -> dict[str, Any]:
-    return {"transactions": [{"id": 1, "account_id": 1, "description": f"matching {q}", "amount": 10.0}]}
+    return {
+        "transactions": [
+            {
+                "id": 1,
+                "account_id": 1,
+                "kind": "debit",
+                "amount": 10.0,
+                "description": f"matching {q}",
+                "memo": "",
+                "created_at": datetime.now(timezone.utc).isoformat(),
+            }
+        ]
+    }
 
 
 @app.post("/api/transactions/{transaction_id}/memo")
@@ -103,7 +123,16 @@ def fetch_statement(url: str) -> dict[str, Any]:
 
 @app.get("/admin")
 def admin() -> dict[str, Any]:
-    return {"staff": [{"id": 1, "name": "Demo Admin", "role": "admin"}]}
+    return {
+        "staff": [
+            {
+                "id": 1,
+                "name": "Demo Admin",
+                "email": "admin@example.test",
+                "role": "admin",
+            }
+        ]
+    }
 
 
 @app.get("/debug")
