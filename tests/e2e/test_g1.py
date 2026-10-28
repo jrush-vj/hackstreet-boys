@@ -37,6 +37,8 @@ def test_safe_requests_reach_the_real_bank():
         r = send(item)
         assert r.headers.get("X-Verdict") == "SAFE", item["id"]
         assert "stub" not in r.text, f"{item['id']}: bank or gateway is still the P0 stub"
+        # a SAFE request must actually work; 4xx here means corpus and bank disagree on the body
+        assert r.status_code < 400, f"{item['id']}: bank returned {r.status_code}: {r.text[:150]}"
 
 
 def test_pack_rules_deny_with_a05():

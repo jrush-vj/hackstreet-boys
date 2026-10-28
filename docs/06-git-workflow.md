@@ -8,24 +8,40 @@ Ownership is in `AGENTS.md` section 2 and enforced by `.github/CODEOWNERS`.
 ## Setup (once)
 
 - Repo: `github.com/Hackfest-X-Saividya/hackstreet-boys-t2-08` (private, event org). Collaborators: `jrush-vj` (Jerush), `AbhiNav-S-Biju` (Abhinav), `AkchhatGrg` (Akchhat).
-- `main` is protected: PRs only, 1 approval (from Jerush), no force-push.
+- Only Jerush pushes to `main`. Nobody force-pushes anything.
+- One branch per person for the whole event: `feat/abhinav-p1-gateway`, `feat/akchhat-bank-dashboard`,
+  `feat/jerush-analyst-core` (Jerush's integration branch).
 
-## Daily loop
+## Daily loop (Abhinav, Akchhat)
 
 ```bash
-git checkout main && git pull
-git checkout -b feat/<you>-<thing>        # e.g. feat/akchhat-honeypot-routes
+git checkout feat/<your-branch>
+git fetch origin && git merge origin/main     # start of every session: pick up the latest main
 # ... work only inside your folders ...
 git add <your-folder>/
 git commit -m "honeypot: mirror transfer and search routes"
-git fetch origin && git rebase origin/main
-git push -u origin feat/<you>-<thing>
-# open a PR on GitHub using the template
+git push origin feat/<your-branch>
+# then tell Jerush in the group chat: "<branch> ready to merge"
 ```
 
-- Keep branches short-lived: open a PR at least every 2–3 hours.
 - Use `git add <your-folder>/`, never `git add .` (it stops you committing someone else's files by accident).
-- If a rebase conflicts, you probably edited a file you don't own. Undo that change and ask the owner.
+- **Merge, never rebase, and never force-push.** Jerush merges your branch into his, so its history must not change.
+- If a merge from `main` conflicts, you probably edited a file you don't own. Keep `main`'s version and ask the owner.
+
+## Integration loop (Jerush)
+
+```bash
+git checkout feat/jerush-analyst-core
+git fetch origin
+git merge origin/feat/abhinav-p1-gateway      # order: shared/ → Abhinav → Akchhat → Jerush
+git merge origin/feat/akchhat-bank-dashboard
+docker compose down -v && docker compose up --build -d
+docker compose run --rm <service> pytest -q   # gateway, analyst, mock-llm, ...
+pytest tests/e2e -q
+git push origin feat/jerush-analyst-core
+git push origin feat/jerush-analyst-core:main # only if everything above is green
+# then post in the group chat: "main updated, merge origin/main into your branch"
+```
 
 ## When you need something outside your folders
 
@@ -36,16 +52,15 @@ git push -u origin feat/<you>-<thing>
 | A new bank route, or a change to one (Abhinav) | Ask Akchhat |
 | A change to the gateway's behaviour (Akchhat) | Ask Abhinav |
 
-The owner makes the change in their own PR. You rebase once it's merged.
+The owner makes the change on their branch. You get it after Jerush pushes it to `main` and you merge `origin/main`.
 
 ## Gates
 
-At each gate (see `docs/05-phases-and-gates.md`):
+A gate (see `docs/05-phases-and-gates.md`) is the same integration loop, plus a tag:
 
-1. Everyone pushes and opens PRs by the gate hour.
-2. Jerush merges them in this order: `shared/` changes, then Abhinav, then Akchhat, then Jerush's services.
-3. Jerush runs the e2e tests and tags the commit.
-4. Everyone runs `git pull --rebase` on `main` before continuing.
+1. Everyone pushes their branch by the gate hour and tells Jerush.
+2. Jerush runs the integration loop. If everything is green, he pushes to `main` and tags it.
+3. Everyone runs `git fetch origin && git merge origin/main` before continuing.
 
 ## Never commit
 

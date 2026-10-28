@@ -51,11 +51,22 @@ every HTTP endpoint. `shared/schemas.py` is the code version of it.
 - Before declaring a task done: `docker compose up --build` must start with no
   crash, and `GET /health` on your services must return `{"status":"ok"}`.
 
-## 6. Git
+## 6. Git (one branch per person)
 
-- Branch: `feat/<owner>-<short-thing>`, for example `feat/abhinav-rate-rules`.
-- Small commits, message format `<service>: <what changed>`.
-- Rebase on `origin/main` before opening a PR. Never force-push `main`.
+Each person has **exactly one branch** for the whole event. Never create another one.
+
+| Person | Branch |
+|---|---|
+| Abhinav | `feat/abhinav-p1-gateway` |
+| Akchhat | `feat/akchhat-bank-dashboard` |
+| Jerush | `feat/jerush-analyst-core` (integration branch) |
+
+- **Start of every session:** bring in the latest `main` with `git fetch origin && git merge origin/main`.
+- **When a task is done:** ask your human to commit (only their folders, `git add <folder>/`) and
+  push to their branch. Then remind them to **tell Jerush it's ready to merge**.
+- **Never rebase or force-push.** Jerush merges your branch, so rewriting its history breaks his merge.
+- Only Jerush pushes to `main`. Don't open PRs into `main` yourself.
+- Commit message format: `<service>: <what changed>`.
 - Never commit `.env`, keys, tokens, model files or the SQLite DB.
 - Full process: `docs/06-git-workflow.md`.
 

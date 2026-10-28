@@ -1,7 +1,7 @@
 # 05 — Phases, deliverables and gates
 
 Hours are counted from build start (H0). At each **gate** everyone stops pushing,
-Jerush merges all open PRs on his laptop, runs `docker compose up --build` +
+Jerush merges everyone's branch into his on his laptop (`docs/06-git-workflow.md`), runs `docker compose up --build` +
 `tests/e2e/`, and tags the result. Nobody starts the next phase's features until the
 gate is green. Bug fixes for the current phase can continue.
 

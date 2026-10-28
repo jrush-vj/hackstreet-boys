@@ -61,17 +61,10 @@ You're also the only person who merges to `main`.
 - [ ] Two timed rehearsals, test `DEMO_OFFLINE=1`, check the hotspot path
 - [ ] Your speaking parts: steps 5–7
 
-## Merge procedure at every gate
+## Merge procedure (every time a teammate says "ready to merge", and at every gate)
 
-```bash
-git checkout main && git pull
-# merge PRs on GitHub in order: shared → Abhinav → Akchhat → Jerush
-git pull
-docker compose down -v && docker compose up --build -d
-pytest tests/e2e -q
-git tag <gate-tag> && git push --tags
-# then post in the group chat: "Gate <n> green, pull main"
-```
+See the integration loop in `docs/06-git-workflow.md`. Push to `main` only when the stack is healthy
+and all service tests + `tests/e2e` pass. At a gate, also `git tag <gate-tag> && git push --tags`.
 
 ## Requests from teammates
 

@@ -187,6 +187,15 @@ All services: `GET /health` → `{"status":"ok"}`.
 | Session token | Not signature-checked | A08 |
 | Any route on bad input | Stack trace in the 500 response | A10 |
 
+Request bodies (JSON). The corpus, honeypot and runner must send exactly these:
+
+| Route | Body |
+|---|---|
+| `POST /api/login` | `{"email": str, "password": str}`. Seed logins are `customer<N>@example.test` / `password123` |
+| `POST /api/transfer` | `{"from_account_id": int, "to_account_id": int, "amount": float}` |
+| `POST /api/transactions/{id}/memo` | `{"memo": str}` |
+| `POST /api/support/chat` | `{"message": str}` |
+
 ### honeypot (Akchhat)
 - Same routes and response shapes as the bank, with fake data and no real effects.
 - Each request emits an event with `source="honeypot"`, `details={"route":str,"action":str}`.
