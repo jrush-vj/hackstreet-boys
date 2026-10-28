@@ -23,6 +23,9 @@ State: `main` has everyone's P1 + P2 and is tagged `g2-divert`. G0, G1 and G2 pa
   `READY TO MERGE (<date>): <what>` under "Requests to Jerush" below. Jerush checks this file and merges. Nobody needs to message anyone.
 
 **Jerush changed in your folders (P3 integration, merge `origin/main` before touching these):**
+- Bans are **display-only and temporary** (10 min, cleared by "Reset demo"): the console shows them, the gateway never blocks.
+  The console's "Reset demo" (admin token `dev-admin-token`, set in its ⚙ settings) resets everything so the demo can be rerun.
+- The console's "Analyst notes" now fill in live: each DIVERT is studied and a learned rule is announced there.
 - **Honeypot console** at http://localhost:3000/honeypot/ is a replica of sentinel-trap's SOC console
   (`dashboard/public/honeypot/`: their HTML/CSS/JS/fonts, only paths and labels changed). Its API is `/api/hp/*` + `/ws/hp`
   on the analyst. The React dashboard header links to it. `nginx.conf` now serves `$uri/index.html` for it.
@@ -37,7 +40,8 @@ State: `main` has everyone's P1 + P2 and is tagged `g2-divert`. G0, G1 and G2 pa
        `docker compose down -v && docker compose up --build -d`, open http://localhost:3000, and run `pytest tests/e2e -q`: **22 pass**.
 2. [x] Read `dashboard/src/App.tsx` and `src/types.ts` so you own them. They're yours to restyle.
 3. [x] Scoreboard (10 tiles, A03/A04/A08 "on slide"), rules panel with learned highlight + toggle, totals bar: done in the React dashboard.
-4. [ ] "First seen → blocked" timer: make it the big moment on screen. It fills in when Jerush's `/api/timers` lands (P3).
+4. [ ] "First seen → blocked" timer: make it the big moment on screen. **`/api/timers` is live now** (Jerush, P3): after the
+       zero-day step it returns e.g. `{"rule_id": "L-…", "owasp": "A06", "seconds": 0.9, …}`. Your 5 s poll will pick it up.
 5. [ ] Projector polish: readable at 1366×768, big type, high contrast (headings at least 1.25× the body size per step).
 6. [ ] Then P4 in Part 2 below: Run-scenario button, the slide deck, and the A03/A04/A08 clips. Start the slides early.
 
@@ -241,6 +245,7 @@ Tick boxes as you go (this file is the one place outside your folders you may ed
 
 _Write requests here (date, what, why). The owner makes the change._
 
+- ✅ DONE by Jerush (2026-10-29): `/api/timers` returns `list[Timer]` for every learned rule that has blocked at least once.
 - 2026-10-28 — Jerush: implement `/api/timers` in analyst. The dashboard now polls
   the endpoint every 5 seconds and displays each learned rule's `seconds`,
   `rule_id`, `owasp`, and `first_blocked`; the endpoint currently returns `[]`

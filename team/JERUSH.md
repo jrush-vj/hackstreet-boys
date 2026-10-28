@@ -21,7 +21,7 @@ You're also the only person who merges to `main`.
 `main` = everyone's P1 + P2, tagged `g2-divert`, 22/22 e2e green.
 1. [ ] Run `kaggle/defense.ipynb` on Kaggle #2 (secret `DEFENSE_LLM_KEY` only); it prints the `trycloudflare.com` URL and checks that it returns 401 without the key.
 2. [ ] Homelab: deploy `g2-divert` per `infra/homelab.md`, plus the `demo.jrushvj.dev` tunnel behind Cloudflare Access.
-3. [ ] P3 analyst loop (below). Also tag anomaly-only DIVERTs with an OWASP id when the analyst studies them; today they have `owasp: null`, so the A06 tile stays 0.
+3. [x] P3 analyst loop (below), including OWASP tagging of anomaly-only DIVERTs (the A06 tile now counts them).
 4. [ ] Every hour: look for `READY TO MERGE` lines under "Requests to Jerush" in `team/ABHINAV.md` and `team/AKCHHAT.md`, then run the integration loop.
 
 ## Tasks
@@ -51,12 +51,12 @@ You're also the only person who merges to `main`.
 - [x] `tests/e2e/test_g2.py`; merge, test, tag `g2-divert`
 
 ### P3 — Learning loop (H12–18) · gate G3
-- [ ] DIVERT handler: collect gateway + sandbox + honeypot events by `correlation_id` (wait up to 2 s), build the prompt, call the LLM
-- [ ] Validator: schema, regex compiles, length 3–300, false-positive replay over the last 500 SAFE events (≤ 1%)
-- [ ] Store the rule (`L-xxxxxxxx`), push to Redis, publish; retry once, then canned fallback
-- [ ] `/api/timers` (first DIVERT of the pattern → rule created → first DENY by that rule)
-- [ ] `LLM_MODE=local` against llama.cpp on the homelab GPU; `DEMO_OFFLINE=1` canned path
-- [ ] `tests/e2e/test_g3.py`; merge, test, tag `g3-learning`
+- [x] DIVERT handler: collect gateway + sandbox + honeypot events by `correlation_id` (wait up to 2 s), build the prompt, call the LLM (`analyst/app/learner.py`)
+- [x] Validator: schema, regex compiles, length 3–300, false-positive replay over the last 500 SAFE events (≤ 1%), and it must match the triggering request
+- [x] Store the rule (`L-xxxxxxxx`), push to Redis, publish; retry once, then canned fallback (`shared/canned.py`)
+- [x] `/api/timers` (first DIVERT of the pattern → rule created → first DENY by that rule)
+- [ ] `LLM_MODE=local` against llama.cpp on the homelab GPU (code path done, **not run on the GPU yet**); `DEMO_OFFLINE=1` canned path (done; tested via the console's "AI off")
+- [x] `tests/e2e/test_g3.py` (zero-day, offline path, /analyze, sandbox stack trace); merge, test. Tag `g3-learning` when pushed
 
 ### P4 — Demo hardening (H18–22) · gate G4 (feature freeze)
 - [ ] `runner/`: `/run` + `/runs/{id}`, reads `scenarios/full.yaml`, target allowlist check before every send

@@ -1,11 +1,9 @@
-import subprocess
-
+import httpx
 import pytest
 
 
 @pytest.fixture(autouse=True)
-def reset_rate_counters():
-    # rate rules count per IP/account in Redis for 60 s; a rerun inside that window must not trip them
-    subprocess.run(["docker", "compose", "exec", "-T", "redis", "sh", "-c",
-                    "redis-cli --scan --pattern 'rate:*' | xargs -r redis-cli del"],
-                   capture_output=True, check=True)
+def reset_demo():
+    # every test starts clean: no events, learned rules, display bans or rate counters (Reset demo button)
+    r = httpx.post("http://localhost:8004/api/hp/reset", headers={"X-Admin-Token": "dev-admin-token"}, timeout=30)
+    assert r.status_code == 200, r.text

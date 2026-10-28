@@ -29,7 +29,9 @@ def health():
 
 @app.post("/v1/chat/completions")
 def chat_completions(body: dict):
-    prompt = "\n".join(str(m.get("content", "")) for m in body.get("messages", []))
+    # the last user message describes the request; the system prompt lists every OWASP id, so ignore it
+    users = [m for m in body.get("messages", []) if m.get("role") == "user"]
+    prompt = str(users[-1].get("content", "")) if users else ""
     content = json.dumps(proposal_for(prompt))
     return {
         "id": f"chatcmpl-{uuid.uuid4().hex[:12]}",

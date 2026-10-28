@@ -1,9 +1,10 @@
-# Honeypot canary keys (honeypot/app/fakes.py plants vb_live_CANARY_<12 hex>). Only an attacker who pulled
-# decoy data from the honeypot can know one, so sending it back means DENY and a permanent IP ban (gateway).
+# Honeypot canary keys (honeypot/app/fakes.py plants vb_live_CANARY_<12 hex>). Only someone who pulled decoy
+# data from the honeypot can know one, so sending it back is DENYed. The IP is NOT blocked: the honeypot
+# console only shows a temporary ban (display-only, cleared by Reset demo).
 - id: canary-001
   owasp: A07
   match_type: regex
   target: any
   pattern: "vb_live_CANARY_[0-9a-f]{12}"
   action: DENY
-  description: "Reuse of a honeypot canary key: attacker identified and banned"
+  description: "Reuse of a honeypot canary key (attacker identified)"

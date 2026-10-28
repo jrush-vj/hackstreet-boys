@@ -23,9 +23,12 @@ State: `main` has everyone's P1 + P2 and is tagged `g2-divert`. G0, G1 and G2 pa
   `READY TO MERGE (<date>): <what>` under "Requests to Jerush" below. Jerush checks this file and merges. Nobody needs to message anyone.
 
 **Jerush changed in your folders (P3 integration, merge `origin/main` before touching these):**
-- `gateway/app/main.py`: banned IPs (Redis set `bans:ip`) get DENY `rule_id: "banned"` before rules run, and a hit on any
-  `canary-*` rule bans the IP. `gateway/rules/packs/canary.yaml` adds `canary-001` (honeypot canary keys `vb_live_CANARY_<12 hex>`).
-- `gateway/tests/test_proxy.py`: `FakeRedis` got `sismember`/`sadd`/`hset`, plus `test_canary_reuse_bans_the_ip`.
+- `gateway/app/main.py` is **unchanged from your version**. Bans are display-only in the honeypot console (Jerush's
+  decision: the gateway never blocks an IP). `gateway/rules/packs/canary.yaml` adds `canary-001`: a reused honeypot canary key
+  (`vb_live_CANARY_<12 hex>`) is DENYed like any other rule hit.
+- `gateway/tests/test_proxy.py`: `FakeRedis` got `sismember`/`sadd`/`hset`, plus `test_canary_reuse_is_denied_but_never_bans_the_ip`.
+- The analyst now learns a rule from every DIVERT (P3). A learned `L-xxxxxxxx` rule reaches your gateway through `rules:updated`
+  (measured: the next similar request is DENYed about 1 s after first sight). `tests/e2e/conftest.py` resets the demo before each test.
 - The bank now leaks a real Python traceback with a 500 on `GET /api/accounts/<non-number>`, so your sandbox
   `stack_trace_leaked` check has something to catch. Use that path (GET) for the A10 step in `scenarios/full.yaml`.
 

@@ -217,6 +217,14 @@ Request bodies (JSON). The corpus, honeypot and runner must send exactly these:
 - `GET /api/timers` → `[{"rule_id","owasp","first_seen","rule_created","first_blocked","seconds"}]`
 - `POST /api/scenario/run` body `{"scenario":"full"}` → `{"run_id": str}` (forwards to runner)
 - `WS /ws/live` pushes `{"type":"event"|"rule"|"stats","data":{...}}`
+- Honeypot console (sentinel-trap replica, served by the dashboard at `/honeypot/`): `GET /api/hp/{stats,sessions,events,
+  data-contrast,bans,rules,analyses,final-report,llm/status,llm/config}`, `WS /ws/hp`; write actions (`POST /api/hp/{reset,
+  mark-safe,ban-all,ban-account,llm/config,llm/test}`, `POST /api/hp/rules/{id}/toggle`) need header `X-Admin-Token: $ADMIN_TOKEN`.
+  **Bans are display-only**: Redis keys `hp:ban:<ip>` with a 10-minute TTL, never read by the gateway. Reset clears events,
+  learned rules, bans and rate counters (the LLM settings are kept).
+- Learning loop (`analyst/app/learner.py`): every gateway DIVERT → wait ≤ 2 s for honeypot/sandbox events → LLM (or canned
+  when `DEMO_OFFLINE=1` / AI off) → validate (also: must match the triggering request) → `L-xxxxxxxx` DENY rule → publish.
+  The LLM base URL/key can be changed at runtime from the console's settings (a trycloudflare URL changes every Kaggle run).
 
 ### runner (Jerush)
 - `POST /run` body `{"scenario": str}` → `{"run_id"}`; `GET /runs/{id}` → progress.

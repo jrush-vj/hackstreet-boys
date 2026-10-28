@@ -15,15 +15,32 @@ import httpx
 from fastapi import APIRouter, Header, HTTPException, Request, WebSocket, WebSocketDisconnect
 
 from app import store
+from app.learner import auth_header
 from shared.config import settings
 from shared.owasp import OWASP_2025
 
-BANS_KEY, BANS_INFO_KEY, SAFE_COUNT_KEY = "bans:ip", "bans:info", "hp:false_positives_fixed"
+SAFE_COUNT_KEY = "hp:false_positives_fixed"
+# Bans are DISPLAY-ONLY: the gateway never reads them, so nobody is actually blocked. Each one is a
+# Redis key that expires on its own (and Reset demo deletes them), so the demo can always be rerun.
+BAN_PREFIX, BAN_TTL_S = "hp:ban:", 600
 LLM_CONFIG_KEY = "llm:config"
 MAX_ACTIONS = 8
 TRAPPED_FOR_S = 15 * 60  # a session with honeypot activity in the last 15 min is "trapped"
 
 router = APIRouter()
+
+
+async def _bans(redis) -> dict[str, dict]:
+    out = {}
+    async for key in redis.scan_iter(match=BAN_PREFIX + "*"):
+        raw = await redis.get(key)
+        if raw:
+            out[key[len(BAN_PREFIX):]] = json.loads(raw)
+    return out
+
+
+async def _ban(redis, ip: str, reason: str) -> None:
+    await redis.set(BAN_PREFIX + ip, json.dumps({"reason": reason, "ts": time.time()}), ex=BAN_TTL_S)
 
 
 def require_admin(token: str | None) -> None:
@@ -109,7 +126,8 @@ def _ip_by_corr(evs: list[dict]) -> dict[str, str]:
 class HpHub:
     """Pushes sentinel-shaped messages to the honeypot console."""
 
-    def __init__(self) -> None:
+    def __init__(self, redis) -> None:
+        self.redis = redis
         self.clients: set[WebSocket] = set()
         self.ip_by_corr: dict[str, str] = {}
 
@@ -126,6 +144,8 @@ class HpHub:
             self.ip_by_corr[data["correlation_id"]] = data["request"]["ip"]
             if len(self.ip_by_corr) > 5000:  # bounded: keep the newest half
                 self.ip_by_corr = dict(list(self.ip_by_corr.items())[2500:])
+            if (data.get("rule_id") or "").startswith("canary-"):
+                await _ban(self.redis, data["request"]["ip"], f"reused a honeypot canary key ({data['rule_id']})")
         if self.clients:
             await self.send({"type": "event", "event": to_st(data, self.ip_by_corr)})
 
@@ -157,7 +177,7 @@ async def _sessions(request: Request) -> list[dict]:
     redis, pool = request.app.state.redis, request.app.state.pool
     evs = await _recent(pool)
     corr = _ip_by_corr(evs)
-    banned = await redis.smembers(BANS_KEY)
+    banned = set(await _bans(redis))
     by_ip: dict[str, dict] = {}
     for e in reversed(evs):  # oldest first
         st = to_st(e, corr)
@@ -207,7 +227,7 @@ async def hp_stats(request: Request):
         "SELECT count(DISTINCT data->'request'->>'ip') FROM events WHERE source='gateway' AND verdict='DIVERT'")
     return {
         "requests": total, "attacks_detected": attacks, "attackers_trapped": trapped,
-        "attackers_banned": await redis.scard(BANS_KEY),
+        "attackers_banned": len(await _bans(redis)),
         "rules_learned": await pool.fetchval("SELECT count(*) FROM rules WHERE source='learned'"),
         "false_positives_fixed": int(await redis.get(SAFE_COUNT_KEY) or 0),
         "learned_catches": catches,
@@ -229,13 +249,9 @@ async def hp_rules(request: Request):
 
 @router.get("/api/hp/bans")
 async def hp_bans(request: Request):
-    redis = request.app.state.redis
-    info = await redis.hgetall(BANS_INFO_KEY)
-    out = []
-    for ip in sorted(await redis.smembers(BANS_KEY)):
-        reason = json.loads(info[ip]).get("reason", "") if ip in info else ""
-        out.append({"ip": ip, "fingerprint": "", "account": None, "reason": reason})
-    return out
+    bans = await _bans(request.app.state.redis)
+    return [{"ip": ip, "fingerprint": "", "account": None,
+             "reason": f"{b['reason']} · temporary, display only"} for ip, b in sorted(bans.items())]
 
 
 MASKED = {  # what the real tables hold, masked: the console shows these next to the decoys sent
@@ -272,8 +288,10 @@ async def hp_contrast(request: Request, limit: int = 8):
 
 
 @router.get("/api/hp/analyses")
-async def hp_analyses(limit: int = 40):
-    return []  # analyst notes arrive with the P3 learning loop
+async def hp_analyses(request: Request, limit: int = 40):
+    rows = await request.app.state.pool.fetch(
+        "SELECT kind, data FROM analyses ORDER BY id DESC LIMIT $1", max(1, min(limit, 200)))
+    return [{"kind": r["kind"], **json.loads(r["data"])} for r in rows]
 
 
 # ---------------------------------------------------------------- AI analyst status / settings
@@ -289,9 +307,10 @@ async def _llm_cfg(redis) -> dict:
 @router.get("/api/hp/llm/status")
 async def hp_llm_status(request: Request):
     cfg = await _llm_cfg(request.app.state.redis)
-    state = "disabled" if not cfg["enabled"] else "idle"
-    return {"state": state, "enabled": cfg["enabled"], "mode": settings.llm_mode,
-            "last_latency_ms": None, "circuit_open_for_s": 0}
+    st = request.app.state.llm_status
+    return {"state": "disabled" if not cfg["enabled"] else st["state"], "enabled": cfg["enabled"],
+            "mode": settings.llm_mode, "last_latency_ms": st["last_latency_ms"], "last_error": st["last_error"],
+            "circuit_open_for_s": 0}
 
 
 @router.get("/api/hp/llm/config")
@@ -322,7 +341,7 @@ async def hp_llm_test(request: Request, x_admin_token: str | None = Header(None)
     t0 = time.perf_counter()
     try:
         async with httpx.AsyncClient(timeout=15) as c:
-            r = await c.get(f"{base}/v1/models", headers={"Authorization": f"Bearer {cfg['api_key']}"})
+            r = await c.get(f"{base}/v1/models", headers=auth_header(cfg["api_key"]))
         return {"ok": r.status_code == 200, "status": r.status_code, "latency_ms": round((time.perf_counter() - t0) * 1000),
                 "base_url": base}
     except httpx.HTTPError as e:
@@ -331,10 +350,8 @@ async def hp_llm_test(request: Request, x_admin_token: str | None = Header(None)
 
 # ---------------------------------------------------------------- actions
 
-async def _ban(request: Request, ip: str, reason: str) -> None:
-    redis = request.app.state.redis
-    await redis.sadd(BANS_KEY, ip)
-    await redis.hset(BANS_INFO_KEY, ip, json.dumps({"reason": reason, "ts": time.time()}))
+async def _console_ban(request: Request, ip: str, reason: str) -> None:
+    await _ban(request.app.state.redis, ip, reason)
     await request.app.state.hp_hub.send({"type": "event", "event": {
         "id": f"ban-{ip}-{time.time()}", "ts": datetime.now(timezone.utc).isoformat(), "action": "banned",
         "session_id": ip, "attacker_ip": ip, "fingerprint": "-", "channel": "system", "payload": "",
@@ -348,8 +365,7 @@ async def hp_mark_safe(request: Request, x_admin_token: str | None = Header(None
     redis = request.app.state.redis
     ip = body.get("ip") or body.get("account") or ""
     if ip:
-        await redis.srem(BANS_KEY, ip)
-        await redis.hdel(BANS_INFO_KEY, ip)
+        await redis.delete(BAN_PREFIX + ip)
     if body.get("rule_id"):
         rule = await store.set_enabled(request.app.state.pool, body["rule_id"], False)
         if rule:
@@ -377,8 +393,8 @@ async def _final_report(request: Request, ended_now: list[str]) -> dict:
     rules = await store.list_rules(request.app.state.pool)
     learned = [r for r in rules if r.source == "learned"]
     stats = await hp_stats(request)
-    blocked = await request.app.state.pool.fetchval(
-        "SELECT count(*) FROM events WHERE source='gateway' AND rule_id='banned'")
+    blocked = await request.app.state.pool.fetchval(  # repeat attacks stopped by canary or learned rules
+        "SELECT count(*) FROM events WHERE source='gateway' AND verdict='DENY' AND (rule_id LIKE 'canary-%' OR rule_id LIKE 'L-%')")
     attackers = []
     for s in sessions:
         attacks = [t for t in s["timeline"] if t["action"] in ("routed_to_honeypot", "blocked", "canary_hit",
@@ -407,7 +423,7 @@ async def hp_ban_account(request: Request, x_admin_token: str | None = Header(No
     require_admin(x_admin_token)
     ip = (await request.json()).get("account", "")
     if ip:
-        await _ban(request, ip, "banned from the honeypot console")
+        await _console_ban(request, ip, "banned from the honeypot console")
     return await _final_report(request, [ip] if ip else [])
 
 
@@ -416,7 +432,7 @@ async def hp_ban_all(request: Request, x_admin_token: str | None = Header(None))
     require_admin(x_admin_token)
     trapped = [s["attacker_ip"] for s in await _sessions(request) if s["status"] == "trapped"]
     for ip in trapped:
-        await _ban(request, ip, "banned with all trapped attackers")
+        await _console_ban(request, ip, "banned with all trapped attackers")
     report = await _final_report(request, trapped)
     await request.app.state.hp_hub.send({"type": "final_report"})
     return report
@@ -431,6 +447,7 @@ async def hp_report(request: Request):
 async def hp_reset(request: Request, x_admin_token: str | None = Header(None)):
     """Clear events, bans, rate counters and learned rules; pack rules are reloaded. LLM settings are kept."""
     require_admin(x_admin_token)
-    await store.reset_demo(request.app.state.pool, request.app.state.redis, request.app.state.packs_dir)
+    async with request.app.state.learn_lock:  # never reset in the middle of learning a rule
+        await store.reset_demo(request.app.state.pool, request.app.state.redis, request.app.state.packs_dir)
     await request.app.state.hp_hub.send({"type": "reset"})
     return {"ok": True}

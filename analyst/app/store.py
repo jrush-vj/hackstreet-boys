@@ -131,7 +131,10 @@ async def reset_demo(pool: asyncpg.Pool, redis, packs_dir: Path) -> None:
     """Back to a clean demo: no events, no learned rules, no bans or rate counters; pack rules reloaded."""
     await pool.execute("TRUNCATE events")
     await pool.execute("DELETE FROM rules WHERE source = 'learned'")
+    await pool.execute("TRUNCATE learned_meta, analyses")
     await pool.execute("UPDATE rules SET hits = 0")
-    keys = [k async for k in redis.scan_iter(match="rate:*")] + ["bans:ip", "bans:info", "hp:false_positives_fixed"]
+    keys = ["hp:false_positives_fixed"]
+    for pattern in ("rate:*", "hp:ban:*"):
+        keys += [k async for k in redis.scan_iter(match=pattern)]
     await redis.delete(*keys)
     await load_packs(pool, redis, packs_dir)

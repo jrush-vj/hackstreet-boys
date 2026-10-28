@@ -27,7 +27,6 @@ def test_console_page_is_served():
 
 
 def test_divert_shows_up_as_trapped_session():
-    reset()
     item = next(c for c in corpus() if c["expected_verdict"] == "DIVERT")
     rid = send(item).headers["X-Request-Id"]
     end = time.time() + 8
@@ -46,20 +45,21 @@ def test_divert_shows_up_as_trapped_session():
     assert rid
 
 
-def test_canary_reuse_bans_until_reset():
+def test_canary_reuse_shows_a_temporary_ban_only():
+    caught = send({"method": "GET", "path": "/api/accounts/1", "query": "",
+                   "headers": {"authorization": f"Bearer {CANARY}"}, "body": None})
+    assert caught.status_code == 403 and caught.json()["rule_id"] == "canary-001"
+    end = time.time() + 5
+    while time.time() < end and not httpx.get(f"{UI}/api/hp/bans").json():
+        time.sleep(0.2)
+    bans = httpx.get(f"{UI}/api/hp/bans").json()
+    assert bans and "canary" in bans[0]["reason"] and "display only" in bans[0]["reason"]
+    # display-only: the same client keeps being judged per request, nobody is locked out
+    after = send({"method": "GET", "path": "/api/accounts/1", "query": "", "headers": {}, "body": None})
+    assert after.status_code == 200 and after.headers["X-Verdict"] == "SAFE"
+    assert httpx.post(f"{UI}/api/hp/reset").status_code == 401  # write actions need the admin token
     reset()
-    try:
-        caught = send({"method": "GET", "path": "/api/accounts/1", "query": "",
-                       "headers": {"authorization": f"Bearer {CANARY}"}, "body": None})
-        assert caught.status_code == 403 and caught.json()["rule_id"] == "canary-001"
-        after = send({"method": "GET", "path": "/api/accounts/1", "query": "", "headers": {}, "body": None})
-        assert after.status_code == 403 and after.json()["rule_id"] == "banned"
-        bans = httpx.get(f"{UI}/api/hp/bans").json()
-        assert bans and "canary" in bans[0]["reason"]
-        assert httpx.post(f"{UI}/api/hp/reset").status_code == 401  # write actions need the admin token
-    finally:
-        reset()
-    assert send({"method": "GET", "path": "/api/accounts/1", "query": "", "headers": {}, "body": None}).status_code == 200
+    assert httpx.get(f"{UI}/api/hp/bans").json() == []
 
 
 def test_live_console_feed():

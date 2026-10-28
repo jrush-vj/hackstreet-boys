@@ -1,6 +1,7 @@
 """Analyst: consumes `events`, persists to Postgres, owns the rules, serves the dashboard API.
 Contracts: docs/04-system-design.md sections 6, 8 (analyst), 9, 11.
-P1/P2: events, stats, rules and /ws/live are real. /analyze, timers and scenario are still stubs."""
+P3: every gateway DIVERT goes through the learning loop (app/learner.py); /analyze and /api/timers are real.
+/api/scenario/run is still a stub (P4)."""
 
 import asyncio
 import uuid
@@ -17,8 +18,8 @@ from shared.config import settings
 from shared.owasp import OWASP_2025
 from shared.schemas import Event, Rule
 
-from app import consumer, store
-from app.hp import HpHub, router as hp_router
+from app import consumer, learner, store
+from app.hp import HpHub, _llm_cfg, router as hp_router
 from app.live import Hub
 
 PACKS_DIR = Path("/app/packs")  # gateway/rules/packs, mounted read-only by compose
@@ -31,12 +32,20 @@ async def lifespan(app: FastAPI):
     await store.migrate(app.state.pool)
     await store.load_packs(app.state.pool, app.state.redis, PACKS_DIR)
     app.state.hub = hub = Hub()
-    app.state.hp_hub = hp_hub = HpHub()
+    app.state.hp_hub = hp_hub = HpHub(app.state.redis)
     app.state.packs_dir = PACKS_DIR
+    app.state.learn_lock = asyncio.Lock()
+    app.state.llm_status = {"state": "idle", "last_latency_ms": None, "last_error": None}
+    app.state.llm_cfg = _llm_cfg
+    learning: set[asyncio.Task] = set()
 
     async def on_event(ev):
         await hub.on_event(ev)
         await hp_hub.on_event(ev)
+        if ev.source == "gateway" and ev.verdict == "DIVERT":  # possible zero-day: learn from it
+            t = asyncio.create_task(learn_safely(app, ev))
+            learning.add(t)
+            t.add_done_callback(learning.discard)
 
     tasks = [
         asyncio.create_task(consumer.run(app.state.pool, app.state.redis, on_event=on_event)),
@@ -59,9 +68,18 @@ def health():
     return {"status": "ok"}
 
 
+async def learn_safely(app: FastAPI, ev: Event, from_stream: bool = True):
+    try:
+        return await learner.learn(app.state, ev, from_stream)
+    except Exception as e:  # a failed analysis must never stop the consumer
+        store.log("learning failed", correlation_id=ev.correlation_id, error=repr(e))
+        return None, f"error: {e!r}"
+
+
 @app.post("/analyze")
-def analyze(event: Event):
-    return {"rule": None, "reason": "stub"}
+async def analyze(event: Event, request: Request):
+    rule, reason = await learn_safely(request.app, event, from_stream=False)
+    return {"rule": rule.model_dump(mode="json") if rule else None, "reason": reason}
 
 
 @app.get("/api/events", response_model=list[Event])
@@ -95,8 +113,17 @@ async def stats(request: Request):
 
 
 @app.get("/api/timers")
-def timers():
-    return []
+async def timers(request: Request):
+    """Per learned rule: pattern first seen → rule created → first DENY by that rule (seconds)."""
+    rows = await request.app.state.pool.fetch("""
+        SELECT m.rule_id, m.owasp, m.first_seen, r.created_at AS rule_created,
+               (SELECT min(e.ts) FROM events e WHERE e.source = 'gateway' AND e.verdict = 'DENY'
+                AND e.rule_id = m.rule_id) AS first_blocked
+        FROM learned_meta m JOIN rules r ON r.id = m.rule_id ORDER BY m.first_seen DESC""")
+    return [{"rule_id": r["rule_id"], "owasp": r["owasp"], "first_seen": r["first_seen"],
+             "rule_created": r["rule_created"], "first_blocked": r["first_blocked"],
+             "seconds": round((r["first_blocked"] - r["first_seen"]).total_seconds(), 1)}
+            for r in rows if r["first_blocked"]]
 
 
 @app.post("/api/scenario/run")

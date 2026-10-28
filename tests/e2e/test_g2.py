@@ -27,10 +27,11 @@ def test_divert_reaches_honeypot_and_sandbox():
     rid = r.headers["X-Request-Id"]
     end = time.time() + 8  # sandbox replay is fire-and-forget
     sources = set()
-    while time.time() < end and sources != {"gateway", "honeypot", "sandbox"}:
+    want = {"gateway", "honeypot", "sandbox"}  # the analyst may add its own note with the same id
+    while time.time() < end and not want <= sources:
         sources = {e["source"] for e in events_for(rid)}
         time.sleep(0.3)
-    assert sources == {"gateway", "honeypot", "sandbox"}, f"{items[0]['id']}: only {sources}"
+    assert want <= sources, f"{items[0]['id']}: only {sources}"
     sandbox = next(e for e in events_for(rid) if e["source"] == "sandbox")
     assert {"status", "error", "latency_ms", "stack_trace_leaked"} <= set(sandbox["details"])
 

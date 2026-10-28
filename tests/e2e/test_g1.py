@@ -70,6 +70,9 @@ def test_requests_are_persisted(verdict):
 
 
 def test_stats_count_verdicts():
+    send(by_verdict("SAFE")[0])
+    send([c for c in by_verdict("DENY") if c["owasp"] == "A05"][0])
+    time.sleep(1.5)  # events reach the analyst
     stats = httpx.get(f"{ANALYST}/api/stats").json()
     assert stats["totals"]["SAFE"] > 0 and stats["totals"]["DENY"] > 0
     assert stats["owasp"]["A05"]["DENY"] > 0

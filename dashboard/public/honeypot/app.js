@@ -847,7 +847,7 @@ function renderFinal(r) {
     const rc = a.return_check;
     const allCaught = rc.payloads_checked > 0 && rc.caught === rc.payloads_checked;
     const verdict = a.banned
-      ? `<div class="fr-verdict ok"><b>If they come back: stopped.</b>${a.account ? `Account <code>${esc(a.account)}</code> is banned: it can never sign in or send a request again.` : "Their fingerprint and IP are banned, so any request gets a 403."}
+      ? `<div class="fr-verdict ok"><b>If they come back: stopped.</b>${a.account ? `Account <code>${esc(a.account)}</code> is banned: it can never sign in or send a request again.` : "Shown as banned for 10 minutes (display only: the gateway still judges each request on its own; Reset demo clears it)."}
           ${rc.payloads_checked ? `${rc.caught} of ${rc.payloads_checked} of their attack requests are also caught by the rules${rc.learned_rule_ids.length ? `, including learned rules ${rc.learned_rule_ids.map((x) => `<code>${esc(x)}</code>`).join(", ")}` : ""}, ${a.account ? ", so a new account sending the same attack is stopped without a ban." : ", so a new identity sending the same attack goes straight back to the honeypot."}` : ""}</div>`
       : `<div class="fr-verdict warn"><b>Not banned.</b>${rc.payloads_checked ? `${rc.caught} of ${rc.payloads_checked} of their requests would be caught by the rules.` : ""}</div>`;
     const an = a.analysis;
