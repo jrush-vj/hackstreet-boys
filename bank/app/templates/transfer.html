@@ -1,0 +1,16 @@
+<section class="card narrow">
+  <h1>Transfer money</h1>
+  {{result}}
+  <form action="/api/transfer" method="post">
+    <label for="from-account">From account</label>
+    <input id="from-account" name="from_account_id" type="number" min="1" required>
+    <label for="to-account">To account</label>
+    <input id="to-account" name="to_account_id" type="number" min="1" required>
+    <label for="amount">Amount</label>
+    <input id="amount" name="amount" type="number" min="0.01" step="0.01" required>
+    <label for="transfer-memo">Memo</label>
+    <input id="transfer-memo" name="memo" type="text">
+    <p class="hint">The transfer API does not save this memo; it is included only for demo analysis.</p>
+    <button type="submit">Submit transfer</button>
+  </form>
+</section>

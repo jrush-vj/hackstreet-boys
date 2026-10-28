@@ -41,9 +41,9 @@ State: `main` has everyone's P1–P3 and is tagged `g3-learning`. P4 corpus + sc
   `stack_trace_leaked` check has something to catch. Use that path (GET) for the A10 step in `scenarios/full.yaml`.
 
 **Do now, in order (VulnBank Phase B: the web front end, then P4 leftovers):**
-1. [ ] Merge `origin/main` (standing rules). Then `docker compose down -v && docker compose up --build -d` and
+1. [x] Merge `origin/main` (standing rules). Then `docker compose down -v && docker compose up --build -d` and
        `docker compose run --rm gateway pytest -q` + `pytest tests/e2e -q`: **30 pass** on `main` at `g3-learning` and after the merge.
-2. [ ] **Phase B: VulnBank web UI** (Part 3 below). This is the big one. Do the steps in order; each one is a PR-sized commit.
+2. [x] **Phase B: VulnBank web UI** (Part 3 below). This is the big one. Do the steps in order; each one is a PR-sized commit.
 3. [ ] Corpus for the new form inputs: one benign + one malicious item per field you add (search, transfer memo, support chat,
        login, statement URL, log memo). Use the bank request bodies in `docs/04-system-design.md` section 8.
 4. [ ] P4 leftovers: the step-5 zero-day items and `tests/corpus/scenarios/full.yaml` are done (pushed). Run the scenario
@@ -62,28 +62,28 @@ Forms post to the **same paths** as the API (`/api/login`, `/api/transfer`, …)
 just sends form-encoded data, so accept form fields as well as JSON (`Form(...)` or `await request.form()`).
 
 **Pages (keep the list short; the console must not feel cluttered):**
-- [ ] `/` → redirect to `/login` if signed out, else `/accounts`.
-- [ ] `/login`: email + password form → `POST /api/login` → sets a session cookie → `/accounts`.
-- [ ] `/accounts`: the signed-in customer's accounts with balances (`GET /api/accounts/{id}`, A01 is still exploitable from the URL).
-- [ ] `/transfer`: from-account, to-account, amount, memo → `POST /api/transfer`. Shows the result; no business limits (A06).
-- [ ] `/search`: one text box → `GET /api/transactions/search?q=` and a results table (A05 SQLi through the box).
-- [ ] `/support`: chat box → `POST /api/support/chat` (A05 prompt injection; the hidden "internal note" shows in replies).
-- [ ] `/statements`: a URL box → `GET /api/statements/fetch?url=` (A01 SSRF; shows the body returned).
-- [ ] Memo on each transaction row → `POST /api/transactions/{id}/memo` (A05 log injection: the memo lands in the log line).
-- [ ] `/admin` and `/debug` stay JSON, as now (A02 is a route, not a page).
+- [x] `/` → redirect to `/login` if signed out, else `/accounts`.
+- [x] `/login`: email + password form → `POST /api/login` → sets a session cookie → `/accounts`.
+- [x] `/accounts`: the signed-in customer's accounts with balances (`GET /api/accounts/{id}`, A01 is still exploitable from the URL).
+- [x] `/transfer`: from-account, to-account, amount, memo → `POST /api/transfer`. Shows the result; no business limits (A06).
+- [x] `/search`: one text box → `GET /api/transactions/search?q=` and a results table (A05 SQLi through the box).
+- [x] `/support`: chat box → `POST /api/support/chat` (A05 prompt injection; the hidden "internal note" shows in replies).
+- [x] `/statements`: a URL box → `GET /api/statements/fetch?url=` (A01 SSRF; shows the body returned).
+- [x] Memo on each transaction row → `POST /api/transactions/{id}/memo` (A05 log injection: the memo lands in the log line).
+- [x] `/admin` and `/debug` stay JSON, as now (A02 is a route, not a page).
 
 **Demo mode and polish:**
-- [ ] Every page has the same header: VulnBank name, signed-in user, sign out. Nothing else. No demo controls in the bank.
-- [ ] Mark each weakness in code with `# DEMO-WEAKNESS: A0x` (the convention already in `bank/app/main.py`).
-- [ ] Readable at 1366×768: large type, one column, high contrast (headings at least 1.25× the body size).
-- [ ] Seed credentials stay as they are (`customer<N>@example.test` / `password123`); mention them on the login page
+- [x] Every page has the same header: VulnBank name, signed-in user, sign out. Nothing else. No demo controls in the bank.
+- [x] Mark each weakness in code with `# DEMO-WEAKNESS: A0x` (the convention already in `bank/app/main.py`).
+- [x] Readable at 1366×768: large type, one column, high contrast (headings at least 1.25× the body size).
+- [x] Seed credentials stay as they are (`customer<N>@example.test` / `password123`); mention them on the login page
       in small print, since the demo needs them.
 
 **Tests (must pass with `docker compose run --rm bank pytest -q`):**
-- [ ] Each page returns 200 and its form posts to the right API path.
-- [ ] Logging in through the form sets a cookie and the accounts page lists that customer's accounts.
-- [ ] The search box passes an injected string through unchanged (the weakness must really be there).
-- [ ] Bad account id through the URL still leaks the traceback (A10 unchanged).
+- [x] Each page returns 200 and its form posts to the right API path.
+- [x] Logging in through the form sets a cookie and the accounts page lists that customer's accounts.
+- [x] The search box passes an injected string through unchanged (the weakness must really be there).
+- [x] Bad account id through the URL still leaks the traceback (A10 unchanged).
 
 **Done when:** you can log in at http://localhost:8000/login (through the gateway) and run one benign
 transfer and one malicious search from the browser, each shows up on the honeypot console and dashboard as expected,

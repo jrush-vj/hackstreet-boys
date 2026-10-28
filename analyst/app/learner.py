@@ -180,7 +180,15 @@ async def learn(state, ev: Event, from_stream: bool = True) -> tuple[Rule | None
         safe = await _safe_requests(pool)
         cfg = await state.llm_cfg(redis)
         proposal, source, problems = None, "offline", []
-        if cfg["enabled"]:
+        # a zero-day upload: the sandbox found an unknown dangerous entry; its name becomes the rule
+        scan = (ev.details or {}).get("file_scan") or {}
+        for name in scan.get("indicators", [])[:1]:
+            candidate = RuleProposal(owasp="A08", match_type="regex", target="body", pattern=re.escape(name),
+                                     params={}, action="DENY",
+                                     description=f"Upload carries an unknown dangerous entry '{name[:60]}' (learned from a zero-day upload)")
+            if validate(candidate, trigger, safe) is None:
+                proposal, source = candidate, "scanner"
+        if proposal is None and cfg["enabled"]:
             prompt = build_prompt(ev, related, owasp)
             for _ in range(2):  # the model gets one retry
                 try:

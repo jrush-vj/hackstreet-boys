@@ -251,3 +251,12 @@ def test_canary_reuse_is_denied_but_never_bans_the_ip(monkeypatch):
 
     assert caught.status_code == 403 and caught.json()["rule_id"] == "canary-001"
     assert after.status_code == 200 and after.headers["X-Verdict"] == "SAFE"
+
+
+def test_upload_detection_only_for_archives_and_eicar():
+    from app.main import looks_like_upload, ZIP_MAGIC
+    assert looks_like_upload("application/zip", b"abc")
+    assert looks_like_upload("text/plain", ZIP_MAGIC + b"rest")
+    assert not looks_like_upload("text/plain", b"plain text, no archive")  # not an upload: no zip signature
+    assert not looks_like_upload("application/json", b'{"a": 1}')
+    assert not looks_like_upload("application/zip", b"")

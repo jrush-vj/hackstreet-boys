@@ -3,14 +3,18 @@ import binascii
 import hashlib
 import json
 import logging
+import os
 import re
+import resource
+import subprocess
+import sys
 import time
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
 import httpx
 import redis.asyncio as redis_asyncio
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, HTTPException, Request, Response
 from pydantic import BaseModel, ConfigDict, Field
 
 from shared import events
@@ -141,3 +145,44 @@ async def replay(payload: ReplayRequest, request: Request):
         ),
     )
     return {"accepted": True, "correlation_id": payload.correlation_id}
+
+
+# ---------------------------------------------------------------- /scan: static upload scanning
+
+MAX_UPLOAD = 5 * 1024 * 1024
+SCAN_TIMEOUT_S = 10
+
+
+def _scan_limits() -> None:
+    """Runs in the child just before the scanner starts: no disk writes, bounded memory, CPU and fds."""
+    resource.setrlimit(resource.RLIMIT_AS, (256 * 1024 * 1024, 256 * 1024 * 1024))
+    resource.setrlimit(resource.RLIMIT_CPU, (SCAN_TIMEOUT_S, SCAN_TIMEOUT_S))
+    resource.setrlimit(resource.RLIMIT_FSIZE, (0, 0))
+    resource.setrlimit(resource.RLIMIT_NOFILE, (64, 64))
+
+
+def run_scanner(data: bytes) -> dict:
+    """Scan in an isolated child. Any failure is reported as scan_error, and the gateway then diverts (fails closed)."""
+    try:
+        out = subprocess.run(
+            [sys.executable, "-m", "app.scanner"], input=data, capture_output=True,
+            timeout=SCAN_TIMEOUT_S, preexec_fn=_scan_limits,
+            cwd=os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+        )
+        if out.returncode != 0:
+            raise RuntimeError(out.stderr[-300:].decode("utf-8", "replace"))
+        return json.loads(out.stdout)
+    except (subprocess.TimeoutExpired, RuntimeError, ValueError, OSError) as exc:
+        logger.warning(json.dumps({"event": "scan_error", "error": str(exc)[:200]}))
+        return {"verdict": "DIVERT", "rule_id": "scan-error", "score": 1.0,
+                "components": {"scan_error": 1.0}, "findings": ["scanner failed: the file was not analysed"],
+                "entries": 0, "size": len(data), "sha256": hashlib.sha256(data).hexdigest()}
+
+
+@app.post("/scan")
+async def scan(request: Request) -> Response:
+    data = await request.body()
+    if len(data) > MAX_UPLOAD:
+        return Response(status_code=413, content=json.dumps({"detail": "upload too large"}), media_type="application/json")
+    result = run_scanner(data)
+    return Response(content=json.dumps(result), media_type="application/json")
