@@ -83,21 +83,21 @@ Start each session with:
 Tick boxes as you go (this file is the one place outside your folders you may edit).
 
 ### P1 — Core path (H1–6) · due at G1
-- [ ] `bank/app/main.py`: FastAPI app with every route in the design doc's bank table (section 8), returning JSON
-- [ ] SQLite schema: customers, accounts, transactions, staff, sessions
-- [ ] `bank/seed.py` with Faker: 50 customers, 120 accounts, 2,000 transactions, 3 staff (1 admin). Runs on container start if the DB is empty.
-- [ ] The intentional weaknesses listed in the table. Keep each one small and commented with `# DEMO-WEAKNESS: A0x`, so it's obvious and easy to show judges.
-- [ ] Support chat: a **mock bot** (rule-based replies, no real LLM) whose hidden prompt contains a fake "internal note"
-- [ ] The bank must never call the internet: statement fetch uses an httpx client with a 2 s timeout, and the network is internal-only anyway
-- [ ] `bank/Dockerfile` (build context = repo root, `COPY shared /app/shared`)
-- [ ] `honeypot/`: stub with the same routes, returning `{"ok":true}`
+- [x] `bank/app/main.py`: FastAPI app with every route in the design doc's bank table (section 8), returning JSON
+- [x] SQLite schema: customers, accounts, transactions, staff, sessions
+- [x] `bank/seed.py` with Faker: 50 customers, 120 accounts, 2,000 transactions, 3 staff (1 admin). Runs on container start if the DB is empty.
+- [x] The intentional weaknesses listed in the table. Keep each one small and commented with `# DEMO-WEAKNESS: A0x`, so it's obvious and easy to show judges.
+- [x] Support chat: a **mock bot** (rule-based replies, no real LLM) whose hidden prompt contains a fake "internal note"
+- [x] The bank must never call the internet: statement fetch uses an httpx client with a 2 s timeout, and the network is internal-only anyway
+- [ ] `bank/Dockerfile` (build context = repo root, `COPY shared /app/shared`) — pending: the current image copies only the bank package.
+- [x] `honeypot/`: stub with the same routes, returning `{"ok":true}`
 
 ### P2 — Honeypot + live feed (H6–12) · due at G2
-- [ ] Honeypot: the same routes and response *shapes* as the bank, with separate fake data and no real effects (transfers "succeed" but change nothing)
-- [ ] Honeypot emits an event per request: `source="honeypot"`, `details={"route","action"}`
+- [x] Honeypot: the same routes and response *shapes* as the bank, with separate fake data and no real effects (transfers "succeed" but change nothing)
+- [x] Honeypot emits an event per request: `source="honeypot"`, `details={"route","action"}`
 - [ ] Dashboard (React + Vite + TS + Tailwind): `src/types.ts` mirroring `Event`/`Rule`/stats from the design doc
-- [ ] Live feed page: connect to `/ws/live`, newest first, green/amber/red by verdict, OWASP chip, rule id, path
-- [ ] `dashboard/Dockerfile`: build with Node, serve with nginx; nginx proxies `/api` and `/ws` to `analyst:8004`
+- [x] Live feed page: connect to `/ws/live`, newest first, green/amber/red by verdict, OWASP chip, rule id, path (static dashboard implementation)
+- [ ] `dashboard/Dockerfile`: build with Node, serve with nginx; nginx proxies `/api` and `/ws` to `analyst:8004` — pending: current image serves the static page directly.
 
 ### P3 — Scoreboard + timer (H12–18) · due at G3
 - [ ] OWASP scoreboard: 10 tiles (A01–A10 with names from the design doc). A tile lights up when it has a DIVERT or DENY. A03, A04 and A08 are marked "on slide".
