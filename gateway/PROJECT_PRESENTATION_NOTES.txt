@@ -1,0 +1,338 @@
+SECURE SPHERE — PROJECT PRESENTATION NOTES
+HackFest 2026 | Hackstreet Boys (T2-08)
+
+PROJECT IN ONE SENTENCE
+An adaptive defense gateway protects a deliberately vulnerable demo bank:
+known threats are denied, suspicious unknown traffic is diverted for safe
+observation, and validated detection rules can be learned and applied to
+similar future requests.
+
+PRESENTATION STORY
+1. A signature-only system can stop known attacks but may miss a new pattern.
+2. Every bank request enters through one gateway and receives SAFE, DIVERT,
+   or DENY.
+3. DIVERT gives the user a response from a fake honeypot while a copy is
+   replayed against an isolated, throwaway bank in the sandbox.
+4. The analyst correlates the evidence, asks a defense LLM for a candidate
+   rule, validates it, and publishes accepted rules.
+5. The gateway reloads the rule and can DENY the next matching request. The
+   dashboard shows the event, OWASP category, rule, and first-seen-to-blocked
+   timing.
+
+PROBLEM AND GOAL
+- Traditional signature-based defenses rely on patterns already known.
+- The project demonstrates both immediate detection of known patterns and an
+  adaptive workflow for suspicious patterns that do not match an existing rule.
+- The target is a controlled, single-host defense demonstration, not a
+  production banking system or a general-purpose attack platform.
+- The bank uses generated fake customer data and intentionally weak behaviors
+  for demonstrations. All test traffic is routed only to the local gateway.
+
+THREE VERDICTS
+- SAFE: No rule matches and the anomaly score is below the configured
+  DIVERT_THRESHOLD (default 0.7). The request is forwarded to the real demo
+  bank.
+- DIVERT: No deny rule matches, but the request is suspicious or anomalous.
+  The caller receives the honeypot's response; a copy is asynchronously sent
+  to the sandbox for replay. The analyst may create a new rule.
+- DENY: A predefined or learned rule matches, or a gateway access-control
+  check fails. The gateway returns HTTP 403 with the verdict, rule ID, OWASP
+  category, and request ID.
+- Responses carry X-Request-Id and X-Verdict headers. The request ID is a
+  correlation ID used to connect gateway, honeypot, sandbox, and analyst
+  events.
+
+SYSTEM ARCHITECTURE
+                         +------------------------------+
+ Browser / corpus runner |                              |
+ ----------------------->| Gateway :8000                |
+                         | policy + proxy + anomaly     |
+                         +---------------+--------------+
+                                         |
+                 +-----------------------+----------------------+
+                 |                       |                      |
+              SAFE                     DIVERT                  DENY
+                 |                       |                      |
+                 v                       +--> Honeypot :8002    +--> 403
+          VulnBank :8001                 |    fake response
+          (real demo app)                |
+                                         +--> Sandbox :8003
+                                               |
+                                               v
+                                         Bank-sandbox :8001
+                                         isolated throwaway copy
+
+ Gateway and service events
+             |
+             v
+ Redis stream "events" --> Analyst :8004 --> Postgres
+                              |
+                              +--> Defense LLM (mock, Kaggle, or local)
+                              |       candidate rule + validation
+                              |
+                              +--> Redis hash "rules:active"
+                                   publish "rules:updated"
+                                             |
+                                             v
+                                      Gateway reloads rules
+
+ Analyst APIs and WebSocket --> Dashboard :3000
+                              live event feed, OWASP scorecard,
+                              rules, learning timer, scenario control
+
+REQUEST-TO-VERDICT PIPELINE
+1. Entry: a browser request or an item from the labelled corpus reaches the
+   gateway on port 8000. In the demo, the bank and honeypot are not exposed as
+   public entry points.
+2. Context: the gateway assigns/propagates a request ID, extracts request
+   metadata, and loads currently enabled rules from Redis.
+3. Decision checks, in order:
+   a. Path rules.
+   b. Rate rules using Redis counters (for example, login attempts by client
+      IP and transfer attempts by source account).
+   c. Regex/header rules (predefined and learned rules).
+   d. Anomaly score compared with DIVERT_THRESHOLD.
+   A matching DENY takes precedence over DIVERT; otherwise the first DIVERT
+   wins, then anomaly score decides DIVERT vs SAFE.
+4. SAFE: the gateway proxies the request to the bank and returns the bank
+   response with verdict/correlation headers.
+5. DENY: the gateway does not forward the request to the bank. It returns a
+   structured 403 response and records the rule and OWASP classification.
+6. DIVERT: the request is sent to the honeypot for a believable fake response.
+   In parallel/background, the gateway asks the sandbox to replay a copy
+   against bank-sandbox, with the same correlation ID.
+7. Evidence: services emit structured events to the Redis stream named
+   "events". The analyst consumes and stores events in Postgres. Sandbox
+   evidence includes status, error, latency, and whether a traceback was
+   exposed.
+8. Learning: for a DIVERT, the analyst waits briefly for associated
+   honeypot/sandbox events, then requests a candidate rule from the configured
+   defense LLM. The analyst validates schema, regex, length, and false-positive
+   behavior against recent SAFE traffic. Invalid proposals are retried once,
+   then a canned fallback is used.
+9. Rule distribution: accepted rules are stored in Postgres and mirrored in
+   Redis hash "rules:active". The analyst publishes "rules:updated". The
+   gateway subscribes and reloads the active rule set (target: under one
+   second).
+10. Visibility: the analyst exposes APIs and a WebSocket. The dashboard shows
+    live events, verdict counts, OWASP categories, active/learned rules, and
+    the first-seen-to-first-blocked timer.
+
+GATEWAY DECISION DETAILS
+- Predefined rule packs are YAML files under gateway/rules/packs/. The analyst
+  loads them and makes enabled rules available through Redis; the gateway
+  reads rules from Redis.
+- Rule types include path, rate, regex, and header matching. Rules carry an
+  action (DENY or DIVERT), OWASP category, ID, and description.
+- Anomaly scoring considers request length, special-character ratio, unseen
+  paths, and unseen parameter names. The configured threshold determines
+  whether an otherwise unmatched request is diverted.
+- For account ownership, successful login associates a hashed bearer token
+  with a customer ID in Redis. After a GET account response, the gateway
+  checks the returned account owner and denies cross-customer access.
+- The gateway does not enforce honeypot "bans"; those are display/demo data
+  and are not used to block client IPs.
+- Performance target: cached in-process verdict p95 under 5 ms, excluding
+  upstream bank time.
+
+SERVICES AND RESPONSIBILITIES
+- gateway (FastAPI, port 8000; Abhinav): single request entry point, reverse
+  proxy, rules, rate controls, anomaly scoring, verdicts, event emission, and
+  rule reloads.
+- sandbox (FastAPI, port 8003; Abhinav): asynchronous replay of diverted
+  requests against bank-sandbox; reports response status, error, latency,
+  traceback-leak signal, and correlation ID.
+- bank (FastAPI, port 8001; Akchhat): deliberately vulnerable demo application
+  and browser pages; uses generated fake customers/accounts/transactions.
+- bank-sandbox (same bank image, internal only): throwaway bank copy used for
+  sandbox replay, separate from the user-facing bank.
+- honeypot (FastAPI, port 8002; Akchhat): mirrors bank routes with fake data
+  and no real effects; answers diverted traffic and emits events.
+- analyst (FastAPI, port 8004; Jerush): consumes events, persists events and
+  rules, runs the rule-learning/validation loop, and serves dashboard APIs
+  and WebSockets.
+- runner (FastAPI, port 8005; Jerush): reads a scenario file and labelled
+  corpus cases, then sends them to the gateway in a timed sequence. It rejects
+  targets not included in RUNNER_ALLOWED_TARGETS.
+- dashboard (React, Vite, TypeScript, nginx; port 3000; Akchhat): live
+  monitoring and scenario interface. Nginx forwards /api and /ws to analyst.
+- mock-llm (FastAPI, port 8009; Jerush): offline, deterministic
+  OpenAI-compatible response service for repeatable demos.
+- Redis: transient event stream, active rules, rate counters, and runtime
+  coordination.
+- Postgres: persistent analyst event and rule records.
+
+NETWORK AND SAFETY DESIGN
+- Docker Compose divides services between an edge network and an internal
+  network. The internal network has no internet access.
+- Production/demo compose publishes only gateway (8000) and dashboard (3000).
+  Development overrides may publish local-only ports for debugging.
+- The bank and honeypot must only be reachable through the gateway in the
+  production/demo setup. The bank network remains internal.
+- Sandbox is hardened: read-only container filesystem, in-memory upload
+  handling, limited temporary filesystem, dropped capabilities, no-new-
+  privileges, and a process limit.
+- Runner is restricted to RUNNER_ALLOWED_TARGETS=http://gateway:8000.
+- Data is synthetic; do not use real personal data or secrets.
+
+PROJECT FILESYSTEM MAP
+Repository root:
+  AGENTS.md, CLAUDE.md       Contributor and agent rules
+  README.md                  Project introduction and quick start
+  docker-compose.yml         Production/demo service topology and networks
+  docker-compose.override.yml
+                             Development-only ports and settings
+  .env.example               Local configuration template
+
+  shared/                    Shared schemas, event helpers, configuration,
+                             OWASP category map, canned rule proposals
+  gateway/
+    app/main.py              Gateway HTTP/proxy request handling
+    app/engine.py            Rule evaluation / decision logic
+    app/anomaly.py           Anomaly score calculation
+    rules/packs/*.yaml       Predefined detection rule packs
+    tests/                   Gateway, rules, and predefined-rule tests
+    bench.py                 Cached verdict benchmark
+  sandbox/
+    app/main.py              Replay API and coordination
+    app/scanner.py           Replay response inspection
+    tests/                   Replay and scanner tests
+  bank/
+    app/main.py              Bank JSON API
+    app/web.py               Browser-facing pages/routes
+    app/templates/           HTML templates
+    app/static/              Browser styling
+    app/db.py, seed.py       Database access and synthetic seed data
+    tests/                   Bank and web tests
+  honeypot/
+    app/main.py              Fake bank endpoints and event generation
+    app/fakes.py             Synthetic/honeypot response data
+    tests/                   Honeypot tests
+  analyst/
+    app/main.py              API/application startup
+    app/consumer.py          Event stream consumer
+    app/learner.py           Candidate-rule learning and validation
+    app/store.py             Persistence access
+    app/live.py              Live dashboard/WebSocket support
+    app/hp.py                Honeypot console API
+    migrations/              Postgres schema changes
+    tests/                   Analyst, learner, and live tests
+  runner/
+    app/main.py              Scenario/corpus replay runner
+  mock-llm/
+    app/main.py              Canned OpenAI-compatible model endpoint
+  dashboard/
+    src/                     React dashboard source and shared UI types
+    public/honeypot/         Honeypot console static UI
+    public/slides/           Static slide/demo asset
+    nginx.conf               Static serving and analyst API/WebSocket proxy
+  tests/
+    corpus/corpus.jsonl      Labelled benign and malicious request examples
+    corpus/scenarios/        Timed scenario definitions
+    e2e/                     End-to-end and integration tests
+  docs/                      Architecture, requirements, environments,
+                             phases, git workflow, and demo script
+  team/                      Team responsibilities and progress notes
+  infra/, kaggle/            Deployment guidance and optional model notebook
+
+DATA AND CONTRACTS
+- shared/schemas.py is the implementation source for shared Pydantic models;
+  docs/04-system-design.md is the documented contract source of truth.
+- Every event has an ID, UTC timestamp, source, correlation ID, optional
+  verdict/OWASP/rule, score, request details, and optional scenario/details.
+- Redis stream "events" is the event transport. Analyst is the consumer and
+  writes persistent events/rules to Postgres.
+- Rule IDs distinguish pack rules (for example, sqli-001) from learned rules
+  (L- plus eight hexadecimal characters).
+- The runner reads tests/corpus/corpus.jsonl and
+  tests/corpus/scenarios/<name>.yaml. Each corpus item specifies method, path,
+  query, headers, body, label, and expected verdict.
+- The analyst sends only limited request metadata and evidence to the model:
+  method, path, query, body excerpt (up to 500 characters), verdict, score,
+  and sandbox/honeypot details. It does not send seed data.
+
+DEMO BANK AND OWASP 2025
+The bank is intentionally weak so the defense can be demonstrated safely.
+Weaknesses are demo fixtures, not recommended application practices.
+
+Live demonstration categories:
+- A01 Broken Access Control, including account ownership and SSRF-style
+  statement fetching.
+- A02 Security Misconfiguration, such as exposed admin/debug routes.
+- A05 Injection: SQL search, prompt-injection-style support chat, and
+  unsanitized log memo.
+- A06 Insecure Design: transfers without business limits; demonstrate
+  DIVERT followed by a learned DENY.
+- A07 Authentication Failures: no bank-side lockout; gateway rate behavior
+  demonstrates blocking after a threshold.
+- A09 Security Logging & Alerting Failures: the dashboard provides the
+  monitoring/alerting story.
+- A10 Mishandling of Exceptional Conditions: malformed input can produce a
+  traceback that the sandbox detects.
+
+Slide/recorded-clip categories:
+- A03 Software Supply Chain Failures.
+- A04 Cryptographic Failures.
+- A08 Software or Data Integrity Failures.
+Do not claim these three are live portions of the demo; the project overview
+describes seven live and three slide/clip categories.
+
+DEMO RUN OF SHOW (ABOUT 3 MINUTES 40 SECONDS)
+1. Normal customer login and account check: green SAFE events.
+2. Search/chat/memo injection cases: immediate red DENY, A05.
+3. Cross-account access, admin/debug, internal statement URL: DENY, A01/A02.
+4. Failed login burst: DENY at the configured threshold, A07.
+5. New transfer-abuse pattern: amber DIVERT, analyst learns rule, next similar
+   request becomes red DENY; show the learning timer, A06.
+6. Malformed input: sandbox identifies a traceback leak, A10.
+7. Wrap-up: OWASP scoreboard; explain A09 dashboard and slide/clip coverage
+   for A03/A04/A08.
+
+DEMO MODES AND STARTUP
+- Default is LLM_MODE=mock for repeatable local runs without external model
+  access or credentials.
+- LLM_MODE can select mock, Kaggle, or local inference. DEMO_OFFLINE=1 uses
+  canned rule behavior so the demo can work without a network/model service.
+- Typical local setup:
+    cp .env.example .env
+    docker compose up --build
+- Dashboard: http://localhost:3000
+- Gateway: http://localhost:8000
+- All services expose GET /health and return {"status":"ok"} when healthy.
+- Development compose overrides may expose additional ports on localhost;
+  production/demo compose intentionally publishes only gateway and dashboard.
+- The end-to-end tests exercise the pipeline. Service tests are located under
+  each service's tests/ directory.
+
+PPT SLIDE SUGGESTION
+1. Title and team: Secure Sphere — Adaptive Zero-Day Detection Gateway.
+2. Problem: known signatures miss unknown patterns; explain SAFE/DIVERT/DENY.
+3. Architecture: show gateway, bank, honeypot, sandbox, analyst, Redis,
+   Postgres, LLM, dashboard, and runner.
+4. Pipeline: use the ten-step request-to-verdict flow above.
+5. Learning moment: first suspicious request is DIVERTed; evidence is
+   validated into a rule; the repeat request is DENYed.
+6. Safety and implementation: internal network, synthetic data, isolated
+   replay, target allowlist, and mock/offline operation.
+7. Demo and impact: 7 live OWASP categories, 3 slide/clip categories; show
+   dashboard events and the first-seen-to-blocked timer.
+
+KEY TALKING POINTS
+- The gateway is the enforcement point; the LLM is not directly in the
+  request's synchronous decision path.
+- DIVERT is a controlled observation path: decoy response plus isolated
+  replay, not execution against the real user-facing bank.
+- A model suggestion is not trusted automatically; the analyst validates the
+  schema, regex, and likely false-positive rate before distribution.
+- The event correlation ID ties together the original request and downstream
+  analysis.
+- The dashboard demonstrates observability and the rule-learning timeline.
+- Clearly distinguish known-rule blocking from the learned-rule zero-day
+  demonstration.
+
+SOURCE OF TRUTH
+Use README.md for quick start, docs/01-overview.md for project story and OWASP
+coverage, docs/04-system-design.md for architecture/contracts, and
+docs/07-demo-script.md for the presentation sequence. If this note conflicts
+with those documents or the shared code contracts, follow the source of truth
+and flag the discrepancy to the project owner.
