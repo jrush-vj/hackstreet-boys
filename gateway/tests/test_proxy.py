@@ -260,3 +260,11 @@ def test_upload_detection_only_for_archives_and_eicar():
     assert not looks_like_upload("text/plain", b"plain text, no archive")  # not an upload: no zip signature
     assert not looks_like_upload("application/json", b'{"a": 1}')
     assert not looks_like_upload("application/zip", b"")
+
+
+def test_client_ip_trusts_cloudflare_header_only_from_a_private_peer():
+    from app.main import client_ip
+    assert client_ip({"cf-connecting-ip": "203.0.113.7"}, "172.18.0.1") == "203.0.113.7"  # via the tunnel
+    assert client_ip({"cf-connecting-ip": "203.0.113.7"}, "8.8.8.8") == "8.8.8.8"  # spoofed from a public peer
+    assert client_ip({"cf-connecting-ip": "not-an-ip"}, "172.18.0.1") == "172.18.0.1"
+    assert client_ip({}, "127.0.0.1") == "127.0.0.1"

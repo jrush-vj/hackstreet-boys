@@ -149,6 +149,19 @@ async def replay_in_sandbox(
         )
 
 
+def client_ip(headers, peer: str) -> str:
+    """Real attacker address. Behind the Cloudflare tunnel the peer is the local tunnel connector, so the address
+    comes from CF-Connecting-IP. That header is trusted only from a private/loopback peer (the gateway port is bound
+    to 127.0.0.1 in compose), so nobody can forge it by reaching the port directly."""
+    import ipaddress
+    cf = headers.get("cf-connecting-ip", "").strip()
+    try:
+        trusted = ipaddress.ip_address(peer).is_private or ipaddress.ip_address(peer).is_loopback
+        return cf if (cf and trusted and ipaddress.ip_address(cf)) else peer
+    except ValueError:
+        return peer
+
+
 UPLOAD_TYPES = {"application/zip", "application/x-zip-compressed", "application/x-zip", "application/octet-stream"}
 
 
@@ -223,8 +236,7 @@ async def proxy(request: Request, path: str = ""):
     request_id = request.headers.get("X-Request-Id") or str(uuid.uuid4())
     body = await request.body()
     body_text = body.decode("utf-8", errors="replace").replace("\x00", "\ufffd")  # NUL cannot be stored in jsonb
-    client = request.client
-    ip = client.host if client else "unknown"
+    ip = client_ip(request.headers, request.client.host if request.client else "unknown")
     context = RequestContext(
         path=request.url.path,
         query=request.url.query,

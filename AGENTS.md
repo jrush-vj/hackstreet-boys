@@ -86,6 +86,9 @@ This repo contains a **deliberately weak demo bank** for a defense demo.
 - The bank and honeypot must only be reachable through the gateway on the
   internal Docker network. Never publish their ports to the host in production
   compose, never expose them through a tunnel.
+- **Exception (decided by Jerush, 2026-10-29):** only the **gateway** may be published, and only through a
+  Cloudflare tunnel behind Cloudflare Access (`infra/attack-target.md`). The gateway port is bound to
+  127.0.0.1 in compose. Bank, honeypot, sandbox, analyst and redis stay unpublished.
 - The bank's network is marked `internal: true` and can't reach the internet. Don't change that.
 - Test traffic may only target `http://gateway:8000` (or `localhost:8000`).
   Any script that sends traffic must check the target before each send.
