@@ -1,0 +1,35 @@
+- id: sqli-001
+  owasp: A05
+  match_type: regex
+  target: query
+  pattern: "(?i)(?:%27|')\\s*(?:or|and)\\s+(?:(?:%27|')?\\d+(?:%27|')?\\s*=\\s*(?:%27|')?\\d+(?:%27|')?|\\d+\\s*=\\s*\\d+)"
+  action: DENY
+  description: "SQL tautology in a query parameter"
+- id: sqli-002
+  owasp: A05
+  match_type: regex
+  target: query
+  pattern: "(?i)\\bunion(?:%20|\\+|\\s)+select\\b"
+  action: DENY
+  description: "UNION-based SQL query manipulation"
+- id: sqli-003
+  owasp: A05
+  match_type: regex
+  target: query
+  pattern: "(?i)(?:--|%23|#)\\s*$"
+  action: DENY
+  description: "SQL comment marker at the end of a parameter"
+- id: sqli-004
+  owasp: A05
+  match_type: regex
+  target: query
+  pattern: "(?i)(?:;|%3b)(?:%20|\\+|\\s)*(?:select|insert|update|delete|drop)\\b"
+  action: DENY
+  description: "Stacked SQL statement in a query parameter"
+- id: sqli-005
+  owasp: A05
+  match_type: regex
+  target: query
+  pattern: "(?i)\\b(?:sleep|benchmark|extractvalue|updatexml)\\s*\\("
+  action: DENY
+  description: "Time- or error-based SQL injection function"

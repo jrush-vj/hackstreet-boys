@@ -79,12 +79,12 @@ Point your agent at the repo root and start each session with:
 Tick boxes as you go (this file is the one place outside your folders you may edit).
 
 ### P1 — Core path (H1–6) · due at gate G1
-- [ ] `gateway/app/main.py`: FastAPI catch-all route that proxies to `BANK_URL` with httpx, adds `X-Request-Id`, emits an event for every request
-- [ ] Rule engine: load `rules:active` from Redis at start; evaluate path rules, then regex/header rules (decision order in design doc section 7)
-- [ ] DENY response shape + `X-Verdict` header exactly as in the contract
-- [ ] Rule packs: `gateway/rules/packs/sqli.yaml`, `prompt.yaml`, `logi.yaml` (all `owasp: A05`), at least 5 rules each, based on the OWASP testing guide
-- [ ] `tests/corpus/corpus.jsonl`: first 40 items (20 benign, 20 malicious across A05), each with `expected_verdict`
-- [ ] `gateway/tests/test_rules.py`: every pack rule has a corpus item that hits it, and no benign item is DENYed
+- [x] `gateway/app/main.py`: FastAPI catch-all route that proxies to `BANK_URL` with httpx, adds `X-Request-Id`, emits an event for every request
+- [x] Rule engine: load `rules:active` from Redis at start; evaluate path rules, then regex/header rules (decision order in design doc section 7)
+- [x] DENY response shape + `X-Verdict` header exactly as in the contract
+- [x] Rule packs: `gateway/rules/packs/sqli.yaml`, `prompt.yaml`, `logi.yaml` (all `owasp: A05`), at least 5 rules each, based on the OWASP testing guide
+- [x] `tests/corpus/corpus.jsonl`: first 40 items (20 benign, 20 malicious across A05), each with `expected_verdict`
+- [x] `gateway/tests/test_rules.py`: every pack rule has a corpus item that hits it, and no benign item is DENYed
 
 ### P2 — DIVERT path (H6–12) · due at G2
 - [ ] Rate rules with Redis counters: login burst (A07), transfer burst (A06), keyed by IP or account

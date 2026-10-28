@@ -1,0 +1,35 @@
+- id: logi-001
+  owasp: A05
+  match_type: regex
+  target: body
+  pattern: "(?i)(?:%0d|%0a)(?:%0d|%0a)"
+  action: DENY
+  description: "Encoded CRLF sequence for forged log entries"
+- id: logi-002
+  owasp: A05
+  match_type: regex
+  target: body
+  pattern: "(?i)(?:%0d|%0a)(?:info|warn|error|debug)\\b"
+  action: DENY
+  description: "Encoded line break followed by a forged log severity"
+- id: logi-003
+  owasp: A05
+  match_type: regex
+  target: body
+  pattern: "(?i)(?:%0d|%0a)(?:set-cookie|location|x-[a-z0-9-]+)\\s*:"
+  action: DENY
+  description: "Encoded line break followed by a forged log header"
+- id: logi-004
+  owasp: A05
+  match_type: regex
+  target: body
+  pattern: '(?:\\r|\\n)(?:INFO|WARN|ERROR|DEBUG)\b'
+  action: DENY
+  description: "Escaped newline followed by a forged log severity"
+- id: logi-005
+  owasp: A05
+  match_type: regex
+  target: body
+  pattern: "(?i)%1b%5b[0-9;]*m"
+  action: DENY
+  description: "Encoded terminal control sequence in log data"
