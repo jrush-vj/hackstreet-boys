@@ -17,7 +17,7 @@ from urllib.parse import unquote_plus
 import httpx
 
 from app import store
-from shared.canned import CANNED
+from shared.canned import CANNED, PROMPT_CANNED
 from shared.events import emit
 from shared.owasp import OWASP_2025
 from shared.schemas import Event, Rule, RuleProposal
@@ -194,7 +194,8 @@ async def learn(state, ev: Event, from_stream: bool = True) -> tuple[Rule | None
                     break
                 problems.append(f"rejected: {why}")
         if proposal is None:  # canned fallback, validated like anything else
-            canned = RuleProposal(owasp=owasp, **CANNED[owasp])
+            table = PROMPT_CANNED if "/support/" in ev.request.path else CANNED  # chat → prompt family, else SQL
+            canned = RuleProposal(owasp=owasp, **table[owasp])
             why = validate(canned, trigger, safe)
             if why:
                 reason = "; ".join(problems + [f"canned {owasp} rejected: {why}"])

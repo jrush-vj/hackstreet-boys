@@ -51,25 +51,28 @@ const Flow = (() => {
   const SANS = '"IBM Plex Sans", system-ui, sans-serif';
   const MONO = '"IBM Plex Mono", ui-monospace, monospace';
 
-  // positions follow the hand-drawn reference (fractions of the stage)
+  // layout follows the reference diagram: user → gateway check → DENY / prod / DIVERT (honeypot + sandbox) → AI → rules → gateway
   const N = {
-    user: { fx: 0.09, fy: 0.40, shape: "circle", label: "User" },
-    gw: { fx: 0.38, fy: 0.40, shape: "diamond", label: "Gateway", sub: "rules + ban list" },
-    app: { fx: 0.83, fy: 0.15, shape: "rect", label: "Service database", sub: "real app" },
-    hp: { fx: 0.83, fy: 0.60, shape: "rect", label: "Honeypot database", sub: "fake data + canaries" },
-    llm: { fx: 0.53, fy: 0.88, shape: "rect", label: "Honeypot LLM sandbox", sub: "fake replies" },
-    dec: { fx: 0.11, fy: 0.80, shape: "diamond", label: "Decision", sub: "trap or ban" },
+    user: { fx: 0.09, fy: 0.46, shape: "rect", label: "User / hacker", sub: "OWASP · predefined · vuln" },
+    gw: { fx: 0.34, fy: 0.46, shape: "diamond", label: "Gateway check", sub: "rules + anomaly" },
+    deny: { fx: 0.34, fy: 0.12, shape: "rect", label: "DENY", sub: "known or learnt attack" },
+    app: { fx: 0.80, fy: 0.12, shape: "rect", label: "Actual database + server", sub: "valid request → prod" },
+    hp: { fx: 0.66, fy: 0.56, shape: "rect", label: "Honeypot", sub: "traps the attacker" },
+    sbx: { fx: 0.62, fy: 0.76, shape: "rect", label: "Sandbox", sub: "replays in a container" },
+    ai: { fx: 0.90, fy: 0.56, shape: "rect", label: "AI learns", sub: "attack + intent" },
+    rules: { fx: 0.30, fy: 0.84, shape: "rect", label: "Updating rules", sub: "new gateway rule" },
   };
-  // edges: from, to, label, dashed, and optional control points (functions of node centres)
+  // edges: from, to, label, dashed, optional control points (functions of node centres)
   const E = {
     ug: { a: "user", b: "gw", label: "request" },
-    ga: { a: "gw", b: "app", label: "valid user" },
-    au: { a: "app", b: "user", label: "response", c: (n) => [{ x: n.app.x - n.app.w * 0.9, y: n.app.y - 4 }, { x: n.user.x + 4, y: n.app.y - 4 }] },
-    gh: { a: "gw", b: "hp", label: "hacker" },
-    hl: { a: "hp", b: "llm", c: (n) => [{ x: n.hp.x, y: n.llm.y }, { x: n.hp.x - 10, y: n.llm.y }] },
-    ld: { a: "llm", b: "dec", c: (n) => [{ x: n.dec.x + 40, y: n.llm.y + 2 }, { x: n.dec.x, y: n.llm.y + 2 }] },
-    dh: { a: "dec", b: "hp", label: "keep trapping", dashed: true },
-    du: { a: "dec", b: "user", label: "ban", dashed: true },
+    gd: { a: "gw", b: "deny", label: "known / learnt" },
+    ga: { a: "gw", b: "app", label: "valid → prod" },
+    gh: { a: "gw", b: "hp", label: "divert" },
+    gs: { a: "gw", b: "sbx", label: "divert", dashed: true, c: (n) => [{ x: n.gw.x + 40, y: n.sbx.y }, { x: n.sbx.x - 120, y: n.sbx.y }] },
+    ha: { a: "hp", b: "ai", label: "trapped" },
+    sa: { a: "sbx", b: "ai", label: "replay" },
+    ar: { a: "ai", b: "rules", c: (n) => [{ x: n.ai.x + 10, y: n.ai.y + 150 }, { x: n.rules.x + 120, y: n.rules.y + 90 }] },
+    rg: { a: "rules", b: "gw", label: "new rule", dashed: true },
   };
 
   let W = 0, H = 0, S = 1, dpr = 1;
@@ -80,7 +83,7 @@ const Flow = (() => {
   const tags = [];
   const stamps = [];
   const heat = {};
-  const counts = { app: "", hp: "", dec: "" };
+  const counts = { app: "", hp: "", deny: "", rules: "" };
   let nextStart = 0;
 
   function layout() {
@@ -160,42 +163,35 @@ const Flow = (() => {
 
   function event(ev) {
     const cat = (ev.extra && ev.extra.category) ? String(ev.extra.category).replace(/_/g, " ") : "";
+    const sandbox = String(ev.detail || "").startsWith("sandbox");
     switch (ev.action) {
       case "request":
-        send(["ug", "ga", "au"], C.ok, null, { onHop: (i) => { if (i === 0) pulse("gw", C.ok); if (i === 1) { pulse("app", C.ok); tag("app", "allowed"); } } });
+        send(["ug", "ga"], C.ok, null, { onHop: (i) => { if (i === 0) pulse("gw", C.ok); if (i === 1) { pulse("app", C.ok); tag("app", "served"); } } });
         break;
       case "routed_to_honeypot":
         send(["ug", "gh"], C.trap, () => { pulse("hp", C.trap); tag("hp", cat ? `trapped · ${cat}` : "trapped", C.trap); },
-          { onHop: (i) => { if (i === 0) { pulse("gw", C.trap); tag("gw", "flagged by rules", C.trap); } } });
+          { onHop: (i) => { if (i === 0) pulse("gw", C.trap); } });
+        send(["gs"], C.trap, () => { pulse("sbx", C.trap); tag("sbx", "replayed", C.trap); });
         break;
       case "honeypot_interaction":
-        send(["ug", "gh", "hl", "ld", "dh"], C.trap, () => tag("dec", "keep trapping", C.trap),
-          { onHop: (i) => { if (i === 1) pulse("hp", C.trap); if (i === 2) { pulse("llm", C.trap); tag("llm", "fake reply"); } if (i === 3) pulse("dec", C.trap); } });
+        if (sandbox) { send(["sa"], C.trap, () => { pulse("ai", C.trap); tag("ai", "sandbox result", C.trap); }); }
+        else { send(["ha"], C.trap, () => { pulse("ai", C.trap); tag("ai", "reviewing", C.trap); }); }
         break;
-      case "canary_hit":
-        send(["ug", "gh"], C.bad, () => { pulse("hp", C.bad); tag("hp", "canary key reused", C.bad); pulse("dec", C.bad); },
-          { onHop: (i) => { if (i === 0) pulse("gw", C.bad); } });
+      case "canary_hit": case "blocked":
+        send(["ug", "gd"], C.bad, () => { pulse("deny", C.bad); stamp("deny", ev.action === "canary_hit" ? "CANARY" : "403", C.bad); });
+        break;
+      case "attack_stopped": case "learned_rule_caught":
+        send(["ug", "gd"], C.learn, () => { pulse("deny", C.learn); tag("deny", cat ? `known ${cat}` : "learned rule", C.learn); });
         break;
       case "banned":
-        send(["du"], C.bad, () => { pulse("user", C.bad); stamp("user", "BANNED", C.bad); }, { onHop: () => pulse("dec", C.bad) });
-        break;
-      case "blocked":
-        send(["ug"], C.bad, () => { pulse("gw", C.bad); stamp("gw", "403", C.bad); send([{ e: "ug", rev: true }], C.bad); });
-        break;
-      case "session_ended":
-        pulse("dec", C.ink); tag("dec", "session over", C.ink);
-        break;
-      case "learned_rule_caught":
-        pulse("gw", C.learn); tag("gw", "learned rule caught it", C.learn);
-        break;
-      case "attack_stopped":
-        send(["ug"], C.learn, () => { pulse("gw", C.learn); stamp("gw", "STOPPED", C.learn); tag("gw", cat ? `known ${cat} · not banned` : "known attack", C.learn); send([{ e: "ug", rev: true }], C.learn); });
+        pulse("deny", C.bad); tag("deny", "banned (display only)", C.bad);
         break;
       case "rule_learned":
-        pulse("gw", C.learn); tag("gw", "new rule active", C.learn);
+        send(["ar", "rg"], C.learn, () => { pulse("gw", C.learn); tag("gw", "new rule active", C.learn); },
+          { onHop: (i) => { if (i === 0) { pulse("ai", C.learn); tag("ai", "learned", C.learn); } if (i === 1) pulse("rules", C.learn); } });
         break;
       case "rule_rejected":
-        tag("gw", "proposed rule rejected", C["ink-3"]);
+        tag("rules", "proposal rejected", C["ink-3"]);
         break;
       case "marked_safe":
         pulse("gw", C.ok); tag("gw", "false positive fixed", C.ok);
@@ -362,9 +358,10 @@ const Flow = (() => {
   function setCounts(stats) {
     const by = stats.by_action || {};
     counts.app = by.request ? `${by.request} served` : "";
-    const hpN = (by.routed_to_honeypot || 0) + (by.honeypot_interaction || 0);
-    counts.hp = hpN ? `${hpN} attacker actions` : "";
-    counts.dec = stats.attackers_banned ? `${stats.attackers_banned} banned` : "";
+    const trapped = (by.routed_to_honeypot || 0) + (by.honeypot_interaction || 0);
+    counts.hp = trapped ? `${trapped} attacker actions` : "";
+    counts.deny = stats.learned_catches ? `${stats.learned_catches} caught by learned rules` : "";
+    counts.rules = stats.rules_learned ? `${stats.rules_learned} learned` : "";
   }
   function clear() { packets.length = 0; pulses.length = 0; tags.length = 0; stamps.length = 0; for (const k in heat) delete heat[k]; }
 

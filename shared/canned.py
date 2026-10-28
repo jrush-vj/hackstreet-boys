@@ -16,9 +16,9 @@ CANNED: dict[str, dict] = {
             "pattern": r"(?i)x-forwarded-proto:\s*http$",
             "description": "Login over plain HTTP"},
     "A05": {"match_type": "regex", "target": "any", "action": "DENY",
-            # the DENY form of the unknown SQLi family (pack sqli-100 DIVERTs it): quote/comment + ORDER BY/HAVING/CAST/…
+            # the DENY form of the unknown SQLi family (pack sqli-100 DIVERTs it): quote/comment + ORDER BY/HAVING/CAST/...
             "pattern": r"(?i)(\bunion\b.+\bselect\b|'\s*(?:or|and)\s+'?\w+'?\s*=\s*'?\w+|(?:'|%27|\"|%22|`|;|%3b|--)[\s%20+]*(?:order\s+by|having|cast|null|declare)\b)",
-            "description": "SQL injection tautology or UNION SELECT"},
+            "description": "SQL injection tautology, UNION SELECT or stacked-query probe"},
     "A06": {"match_type": "regex", "target": "body", "action": "DENY",
             "pattern": r"\"[A-Za-z_]+\"\s*:\s*\"[^\"]*[!@#$%^&*()]{8,}",
             "description": "Transfer abuse probe: JSON fields stuffed with punctuation"},
@@ -34,4 +34,11 @@ CANNED: dict[str, dict] = {
     "A10": {"match_type": "regex", "target": "path", "action": "DENY",
             "pattern": r"^/api/accounts/[^/]*[^/0-9][^/]*$",
             "description": "Malformed (non-numeric) account id that crashes the bank"},
+}
+
+# A05 for the support chat (prompt injection): the DENY form of the unknown prompt family (pack prompt-100)
+PROMPT_CANNED: dict[str, dict] = {
+    "A05": {"match_type": "regex", "target": "body", "action": "DENY",
+            "pattern": r"(?i)\b(?:ignore|disregard|forget|override|bypass|pretend)\b",
+            "description": "Prompt injection: instruction-override wording in a chat message"},
 }

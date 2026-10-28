@@ -8,7 +8,7 @@ import uuid
 
 from fastapi import FastAPI
 
-from shared.canned import CANNED
+from shared.canned import CANNED, PROMPT_CANNED
 from shared.schemas import RuleProposal
 
 app = FastAPI(title="mock-llm")
@@ -19,7 +19,8 @@ OWASP_RE = re.compile(r"\bA(0[1-9]|10)\b")
 def proposal_for(prompt: str) -> dict:
     m = OWASP_RE.search(prompt)
     owasp = f"A{m.group(1)}" if m else "A05"
-    return RuleProposal(owasp=owasp, **CANNED[owasp]).model_dump()
+    table = PROMPT_CANNED if "/api/support/" in prompt else CANNED
+    return RuleProposal(owasp=owasp, **table[owasp]).model_dump()
 
 
 @app.get("/health")
