@@ -22,6 +22,16 @@ State: `main` has everyone's P1 + P2 and is tagged `g2-divert`. G0, G1 and G2 pa
 - **When a step is done:** tick it here, commit only your folders and this file, push to `feat/akchhat-bank-dashboard`, and add one line
   `READY TO MERGE (<date>): <what>` under "Requests to Jerush" below. Jerush checks this file and merges. Nobody needs to message anyone.
 
+**Jerush changed in your folders (P3 integration, merge `origin/main` before touching these):**
+- **Honeypot console** at http://localhost:3000/honeypot/ is a replica of sentinel-trap's SOC console
+  (`dashboard/public/honeypot/`: their HTML/CSS/JS/fonts, only paths and labels changed). Its API is `/api/hp/*` + `/ws/hp`
+  on the analyst. The React dashboard header links to it. `nginx.conf` now serves `$uri/index.html` for it.
+- `honeypot/`: ported sentinel-trap's honeypot to the bank routes (`app/fakes.py`): payload-aware decoys with canary keys,
+  decoy `/robots.txt`, `/.env`, `/api/internal/keys`, `/api/logs`, a 50–300 ms random delay, lenient body parsing (no 422 tells),
+  and event `details` saying what was served (`served`, `kind`, `sample`, `category`, `canary`).
+- `bank/app/main.py`: the missing A10 weakness. Unhandled errors return the Python traceback with a 500, and
+  `GET /api/accounts/<non-number>` triggers it. Tests: `bank/tests` (7), `honeypot/tests` (5).
+
 **Do now, in order (P3, due at G3):**
 1. [ ] Merge `origin/main` (standing rules). **Your branch is behind `main`, so do this before editing anything.** Then
        `docker compose down -v && docker compose up --build -d`, open http://localhost:3000, and run `pytest tests/e2e -q`: **22 pass**.

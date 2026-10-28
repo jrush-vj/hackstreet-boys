@@ -18,6 +18,7 @@ from shared.owasp import OWASP_2025
 from shared.schemas import Event, Rule
 
 from app import consumer, store
+from app.hp import HpHub, router as hp_router
 from app.live import Hub
 
 PACKS_DIR = Path("/app/packs")  # gateway/rules/packs, mounted read-only by compose
@@ -30,8 +31,15 @@ async def lifespan(app: FastAPI):
     await store.migrate(app.state.pool)
     await store.load_packs(app.state.pool, app.state.redis, PACKS_DIR)
     app.state.hub = hub = Hub()
+    app.state.hp_hub = hp_hub = HpHub()
+    app.state.packs_dir = PACKS_DIR
+
+    async def on_event(ev):
+        await hub.on_event(ev)
+        await hp_hub.on_event(ev)
+
     tasks = [
-        asyncio.create_task(consumer.run(app.state.pool, app.state.redis, on_event=hub.on_event)),
+        asyncio.create_task(consumer.run(app.state.pool, app.state.redis, on_event=on_event)),
         asyncio.create_task(hub.stats_loop(lambda: store.stats(app.state.pool, OWASP_2025))),
     ]
     store.log("analyst started", llm_mode=settings.llm_mode)
@@ -43,6 +51,7 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="analyst", lifespan=lifespan)
+app.include_router(hp_router)  # honeypot console API: /api/hp/*, /ws/hp
 
 
 @app.get("/health")

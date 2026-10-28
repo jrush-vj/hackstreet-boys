@@ -3,6 +3,7 @@ import base64
 import hashlib
 import json
 import logging
+import time
 import uuid
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
@@ -33,6 +34,8 @@ HOP_BY_HOP_HEADERS = {
     "transfer-encoding",
     "upgrade",
 }
+BANS_KEY = "bans:ip"  # banned client IPs (canary reuse, or banned from the honeypot console)
+BANS_INFO_KEY = "bans:info"  # ip -> {"reason", "ts"}
 PROXY_METHODS = ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS", "HEAD"]
 SESSION_OWNER_TTL_SECONDS = 3600
 
@@ -204,14 +207,20 @@ async def proxy(request: Request, path: str = ""):
         body=body_text,
         ip=ip,
     )
-    rule = await request.app.state.engine.evaluate(context, request.app.state.redis)
-    verdict = rule.action if rule else "SAFE"
+    redis = request.app.state.redis
+    banned = await redis.sismember(BANS_KEY, ip)
+    rule = None if banned else await request.app.state.engine.evaluate(context, redis)
+    if rule is not None and rule.id.startswith("canary-"):
+        # a planted honeypot key came back: whoever sent it is an attacker, ban the IP for good
+        await redis.sadd(BANS_KEY, ip)
+        await redis.hset(BANS_INFO_KEY, ip, json.dumps({"reason": f"reused a canary key ({rule.id})", "ts": time.time()}))
+    verdict = "DENY" if banned else (rule.action if rule else "SAFE")
     matched_owasp = rule.owasp if rule else None
-    matched_rule_id = rule.id if rule else None
+    matched_rule_id = "banned" if banned else (rule.id if rule else None)
     scenario_step = request.headers.get("X-Scenario-Step")
     score = 0.0
     score_details = {}
-    if rule is None:
+    if rule is None and not banned:
         score, score_details = score_request(context)
         if score >= settings.divert_threshold:
             verdict = "DIVERT"

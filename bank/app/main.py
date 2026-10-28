@@ -1,11 +1,13 @@
 import hashlib
 import logging
 import secrets
+import traceback
 from datetime import datetime, timezone
 from typing import Any
 
 import httpx
 from fastapi import FastAPI, HTTPException, Query, Request
+from fastapi.responses import PlainTextResponse
 from pydantic import BaseModel, Field
 
 from bank.app.db import connect, initialize_schema, row_dict
@@ -14,6 +16,12 @@ from bank.seed import seed_database
 logging.basicConfig(level=logging.INFO, format="%(message)s")
 logger = logging.getLogger("vulnbank")
 app = FastAPI(title="VulnBank")
+
+
+@app.exception_handler(Exception)
+async def leak_traceback(request: Request, exc: Exception) -> PlainTextResponse:
+    # DEMO-WEAKNESS: A10 — unhandled errors return the full Python stack trace to the caller
+    return PlainTextResponse("".join(traceback.format_exception(exc)), status_code=500)
 
 
 class LoginRequest(BaseModel):
@@ -67,7 +75,8 @@ def login(payload: LoginRequest) -> dict[str, Any]:
 
 
 @app.get("/api/accounts/{account_id}")
-def account(account_id: int) -> dict[str, Any]:
+def account(account_id: str) -> dict[str, Any]:
+    account_id = int(account_id)  # DEMO-WEAKNESS: A10 — no input validation; "abc" raises and leaks a trace
     with connect() as connection:
         result = connection.execute(
             """

@@ -106,9 +106,14 @@ export default function App() {
           <h1 className="text-3xl font-bold tracking-tight">Secure Sphere</h1>
           <p className="text-base text-slate-400">Zero-day detection gateway · OWASP Top 10:2025</p>
         </div>
-        <span className={`rounded-full px-3 py-1 text-sm font-semibold ${live ? "bg-emerald-500/20 text-emerald-300" : "bg-slate-800 text-slate-400"}`}>
-          {live ? "● live" : "○ connecting…"}
-        </span>
+        <div className="flex items-center gap-3">
+          <a href="/honeypot/" className="rounded-md bg-amber-500/20 px-3 py-1 text-sm font-semibold text-amber-200 hover:bg-amber-500/30">
+            Honeypot console →
+          </a>
+          <span className={`rounded-full px-3 py-1 text-sm font-semibold ${live ? "bg-emerald-500/20 text-emerald-300" : "bg-slate-800 text-slate-400"}`}>
+            {live ? "● live" : "○ connecting…"}
+          </span>
+        </div>
       </header>
 
       {error && <p className="bg-red-900/40 px-6 py-2 text-red-200">Analyst unreachable: {error}</p>}

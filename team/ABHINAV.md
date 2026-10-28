@@ -22,6 +22,13 @@ State: `main` has everyone's P1 + P2 and is tagged `g2-divert`. G0, G1 and G2 pa
 - **When a step is done:** tick it here, commit only your folders and this file, push to `feat/abhinav-p1-gateway`, and add one line
   `READY TO MERGE (<date>): <what>` under "Requests to Jerush" below. Jerush checks this file and merges. Nobody needs to message anyone.
 
+**Jerush changed in your folders (P3 integration, merge `origin/main` before touching these):**
+- `gateway/app/main.py`: banned IPs (Redis set `bans:ip`) get DENY `rule_id: "banned"` before rules run, and a hit on any
+  `canary-*` rule bans the IP. `gateway/rules/packs/canary.yaml` adds `canary-001` (honeypot canary keys `vb_live_CANARY_<12 hex>`).
+- `gateway/tests/test_proxy.py`: `FakeRedis` got `sismember`/`sadd`/`hset`, plus `test_canary_reuse_bans_the_ip`.
+- The bank now leaks a real Python traceback with a 500 on `GET /api/accounts/<non-number>`, so your sandbox
+  `stack_trace_leaked` check has something to catch. Use that path (GET) for the A10 step in `scenarios/full.yaml`.
+
 **Do now, in order (P3, due at G3):**
 1. [x] Merge `origin/main` (standing rules), then `docker compose down -v && docker compose up --build -d` and `pytest tests/e2e -q`: **22 pass**.
 2. [x] Hot reload on `rules:updated` under 1 s. Verified by Jerush: ~0.46 s from PATCH to new verdict. Optional: add a timing test.

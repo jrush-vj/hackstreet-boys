@@ -1,0 +1,36 @@
+"""Canned RuleProposals per OWASP id: what mock-llm returns, and the analyst's fallback when the
+real LLM fails twice or DEMO_OFFLINE=1 (docs/04-system-design.md section 9).
+Each one must match the corpus DIVERT item for its category, so "learn, then DENY the next one" works offline."""
+
+CANNED: dict[str, dict] = {
+    "A01": {"match_type": "regex", "target": "query", "action": "DENY",
+            "pattern": r"(?i)url=https?(?::|%3A)(?://|%2F%2F)(127\.|10\.|169\.254\.|localhost|bank)",
+            "description": "Statement fetch pointed at an internal host"},
+    "A02": {"match_type": "regex", "target": "path", "action": "DENY",
+            "pattern": r"^/(admin|debug)(/|$)",
+            "description": "Admin or debug route reached from outside"},
+    "A03": {"match_type": "regex", "target": "header", "action": "DENY",
+            "pattern": r"(?i)x-dependency-scan:\s*vulnerable",
+            "description": "Placeholder: supply chain is shown on a slide"},
+    "A04": {"match_type": "regex", "target": "header", "action": "DENY",
+            "pattern": r"(?i)x-forwarded-proto:\s*http$",
+            "description": "Login over plain HTTP"},
+    "A05": {"match_type": "regex", "target": "any", "action": "DENY",
+            "pattern": r"(?i)(\bunion\b.+\bselect\b|'\s*or\s*'?1'?\s*=\s*'?1)",
+            "description": "SQL injection tautology or UNION SELECT"},
+    "A06": {"match_type": "regex", "target": "body", "action": "DENY",
+            "pattern": r"\"[A-Za-z_]+\"\s*:\s*\"[^\"]*[!@#$%^&*()]{8,}",
+            "description": "Transfer abuse probe: JSON fields stuffed with punctuation"},
+    "A07": {"match_type": "regex", "target": "body", "action": "DENY",
+            "pattern": r"(?i)\"(credential|session|override|recovery|challenge)\"\s*:",
+            "description": "Login carrying smuggled credential/session override fields"},
+    "A08": {"match_type": "regex", "target": "header", "action": "DENY",
+            "pattern": r"(?i)authorization:\s*bearer\s+[\w-]+\.[\w-]+\.\s*$",
+            "description": "Unsigned session token (empty signature)"},
+    "A09": {"match_type": "regex", "target": "any", "action": "DENY",
+            "pattern": r"(?i)(%0a|%0d|\\n)",
+            "description": "Placeholder: log-forging characters"},
+    "A10": {"match_type": "regex", "target": "path", "action": "DENY",
+            "pattern": r"^/api/accounts/[^/]*[^/0-9][^/]*$",
+            "description": "Malformed (non-numeric) account id that crashes the bank"},
+}

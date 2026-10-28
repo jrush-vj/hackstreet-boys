@@ -22,6 +22,7 @@ class Settings(BaseSettings):
     analyst_url: str = "http://analyst:8004"
     runner_url: str = "http://runner:8005"
     runner_allowed_targets: str = "http://gateway:8000"  # comma-separated
+    admin_token: str = "dev-admin-token"  # honeypot console write actions (X-Admin-Token header)
 
 
 settings = Settings()

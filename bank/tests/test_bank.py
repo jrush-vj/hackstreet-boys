@@ -36,3 +36,14 @@ def test_search_and_memo(client):
 
 def test_health(client):
     assert client.get("/health").json() == {"status": "ok"}
+
+
+def test_bad_account_id_leaks_a_stack_trace():  # the A10 weakness the sandbox detects
+    from fastapi.testclient import TestClient
+
+    from bank.app.main import app
+
+    with TestClient(app, raise_server_exceptions=False) as c:
+        r = c.get("/api/accounts/not-a-number")
+    assert r.status_code == 500
+    assert r.text.startswith("Traceback (most recent call last):") and 'File "' in r.text

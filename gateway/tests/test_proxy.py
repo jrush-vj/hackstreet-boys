@@ -42,6 +42,15 @@ class FakeRedis:
     async def xadd(self, stream, values):
         self.events.append((stream, values))
 
+    async def sismember(self, key, member):
+        return member in self.values.get(key, set())
+
+    async def sadd(self, key, member):
+        self.values.setdefault(key, set()).add(member)
+
+    async def hset(self, key, field, value):
+        self.values.setdefault(key, {})[field] = value
+
     async def set(self, key, value, ex=None):
         self.values[key] = value
         self.expirations[key] = ex
@@ -225,3 +234,23 @@ def test_divert_uses_honeypot_and_schedules_correlated_sandbox_replay(monkeypatc
     )
     emitted = [json.loads(values["data"]) for _, values in redis.events]
     assert [event["verdict"] for event in emitted] == ["SAFE", "DIVERT"]
+
+
+def test_canary_reuse_bans_the_ip(monkeypatch):
+    canary_rule = Rule(id="canary-001", owasp="A07", match_type="regex", target="any",
+                       pattern="vb_live_CANARY_[0-9a-f]{12}", action="DENY", source="pack",
+                       description="Canary reuse")
+    redis = FakeRedis([canary_rule])
+    upstream = FakeHTTPClient()
+    monkeypatch.setattr(gateway_main.redis_asyncio, "from_url", lambda *args, **kwargs: redis)
+    monkeypatch.setattr(gateway_main.httpx, "AsyncClient", lambda *args, **kwargs: upstream)
+
+    with TestClient(gateway_main.app) as client:
+        before = client.get("/api/accounts/12")
+        caught = client.get("/api/accounts/12", headers={"authorization": "Bearer vb_live_CANARY_0123456789ab"})
+        after = client.get("/api/accounts/12")  # clean request, same IP: still refused
+
+    assert before.headers["X-Verdict"] == "SAFE"
+    assert caught.status_code == 403 and caught.json()["rule_id"] == "canary-001"
+    assert after.status_code == 403 and after.json()["rule_id"] == "banned"
+    assert len(upstream.requests) == 1  # only the request before the canary reached the bank
