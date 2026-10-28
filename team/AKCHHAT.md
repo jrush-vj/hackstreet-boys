@@ -25,7 +25,7 @@ State: `main` has everyone's P1 + P2 and is tagged `g2-divert`. G0, G1 and G2 pa
 **Do now, in order (P3, due at G3):**
 1. [ ] Merge `origin/main` (standing rules). **Your branch is behind `main`, so do this before editing anything.** Then
        `docker compose down -v && docker compose up --build -d`, open http://localhost:3000, and run `pytest tests/e2e -q`: **22 pass**.
-2. [ ] Read `dashboard/src/App.tsx` and `src/types.ts` so you own them. They're yours to restyle.
+2. [x] Read `dashboard/src/App.tsx` and `src/types.ts` so you own them. They're yours to restyle.
 3. [x] Scoreboard (10 tiles, A03/A04/A08 "on slide"), rules panel with learned highlight + toggle, totals bar: done in the React dashboard.
 4. [ ] "First seen → blocked" timer: make it the big moment on screen. It fills in when Jerush's `/api/timers` lands (P3).
 5. [ ] Projector polish: readable at 1366×768, big type, high contrast (headings at least 1.25× the body size per step).
@@ -231,4 +231,12 @@ Tick boxes as you go (this file is the one place outside your folders you may ed
 
 _Write requests here (date, what, why). The owner makes the change._
 
--
+- 2026-10-28 — Jerush: implement `/api/timers` in analyst. The dashboard now polls
+  the endpoint every 5 seconds and displays each learned rule's `seconds`,
+  `rule_id`, `owasp`, and `first_blocked`; the endpoint currently returns `[]`
+  from its `main` stub, so the timer checkbox remains open until the backend
+  records first-seen and first-blocked timestamps.
+- 2026-10-28 — Jerush: this remains the only open P3 dependency. Please expose
+  `GET /api/timers` as `list[Timer]`, calculating
+  `first_seen → first_blocked` for each learned rule that has blocked at least
+  once. The existing dashboard is ready to render the response.

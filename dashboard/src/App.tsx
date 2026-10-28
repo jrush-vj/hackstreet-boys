@@ -38,19 +38,25 @@ export default function App() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    const refreshTimers = () => {
+      getJson<Timer[]>("/api/timers")
+        .then(setTimers)
+        .catch((e: Error) => setError(e.message));
+    };
+
     Promise.all([
       getJson<Stats>("/api/stats"),
       getJson<Event[]>(`/api/events?limit=${FEED_MAX}`),
       getJson<Rule[]>("/api/rules"),
-      getJson<Timer[]>("/api/timers"),
     ])
-      .then(([s, e, r, t]) => {
+      .then(([s, e, r]) => {
         setStats(s);
         setEvents(e);
         setRules(r);
-        setTimers(t);
       })
       .catch((e: Error) => setError(e.message));
+    refreshTimers();
+    const timerRefresh = window.setInterval(refreshTimers, 5000);
 
     let ws: WebSocket | null = null;
     let retry: number | undefined;
@@ -78,6 +84,7 @@ export default function App() {
     return () => {
       closed = true;
       window.clearTimeout(retry);
+      window.clearInterval(timerRefresh);
       ws?.close();
     };
   }, []);
@@ -170,8 +177,14 @@ export default function App() {
               <p className="text-slate-400">No learned rule has blocked yet.</p>
             ) : (
               timers.map((t) => (
-                <div key={t.rule_id} className="text-lg">
-                  <span className="text-4xl font-bold text-amber-300">{t.seconds}s</span> {t.rule_id} ({t.owasp})
+                <div key={t.rule_id} className="mb-3 text-lg last:mb-0">
+                  <div>
+                    <span className="text-4xl font-bold tabular-nums text-amber-300">{t.seconds}s</span>{" "}
+                    <span className="font-mono">{t.rule_id}</span> ({t.owasp})
+                  </div>
+                  <div className="text-sm text-slate-400">
+                    First blocked {new Date(t.first_blocked).toLocaleTimeString()}
+                  </div>
                 </div>
               ))
             )}
