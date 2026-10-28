@@ -35,7 +35,7 @@ WEIGHTS = {
     "encryption": {"password_protected": 0.4},
     "packing": {"high_entropy": 0.15},
 }
-EXEC_EXT = {".exe", ".dll", ".scr", ".msi", ".com", ".jar", ".elf", ".bin"}
+EXEC_EXT = {".exe", ".dll", ".scr", ".msi", ".com", ".jar", ".elf", ".bin", ".apk", ".dex"}  # apk/dex: Android code
 SCRIPT_EXT = {".ps1", ".bat", ".cmd", ".vbs", ".js", ".jse", ".hta", ".sh", ".py", ".wsf"}
 MACRO_EXT = {".docm", ".xlsm", ".pptm", ".dotm"}
 NESTED_EXT = {".zip", ".rar", ".7z", ".tar", ".gz", ".iso"}
@@ -111,6 +111,8 @@ def scan_bytes(data: bytes) -> dict:
                         continue  # encrypted or unsupported method: already flagged above if encrypted
                     if len(payload) > 4096 and _entropy(payload[:ENTROPY_SAMPLE]) > ENTROPY_LIMIT:
                         hit("packing", "high_entropy", f"high-entropy payload (packed or encrypted): {info.filename[:80]}")
+    elif data[:2] == b"MZ" or data[:4] == b"\x7fELF":  # raw Windows PE or Linux ELF: no filename to learn from
+        hit("dangerous_content", "executable", "raw executable body (PE/ELF)")
     elif len(data) > 4096 and _entropy(data[:ENTROPY_SAMPLE]) > ENTROPY_LIMIT:
         hit("packing", "high_entropy", "high-entropy body (packed or encrypted)")
 

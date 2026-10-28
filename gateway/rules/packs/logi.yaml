@@ -39,28 +39,28 @@
   owasp: A05
   match_type: regex
   target: any
-  pattern: (?i)(?:%0d%0a|%0a|\r\n|\n)\s*\d{4}-\d{2}-\d{2}
+  pattern: (?i)(?:%0d%0a|%0a|\\r\\n|\\n)\s*\d{4}-\d{2}-\d{2}
   action: DENY
   description: 'Newline then a timestamp: a forged log line'
 - id: logi-007
   owasp: A05
   match_type: regex
   target: any
-  pattern: (?i)(?:%0d|%0a|\r|\n)\s*(?:user|action|level|status)=
+  pattern: (?i)(?:%0d|%0a|\\r|\\n)\s*(?:user|action|level|status)=
   action: DENY
   description: Newline then a forged key=value log field
 - id: logi-008
   owasp: A05
   match_type: regex
   target: any
-  pattern: (?i)(?:%0d|%0a|\r|\n)\s*\[?(?:info|warn|warning|error|critical)\]?\s*[:\]]
+  pattern: (?i)(?:%0d|%0a|\\r|\\n)\s*\[?(?:info|warn|warning|error|critical)\]?\s*[:\]]
   action: DENY
   description: Newline then a bracketed level
 - id: logi-009
   owasp: A05
   match_type: regex
   target: any
-  pattern: (?i)%00|\x00
+  pattern: (?i)%00|\\x00
   action: DENY
   description: NUL byte truncates the log line
 - id: logi-010
@@ -74,6 +74,6 @@
   owasp: A05
   match_type: regex
   target: any
-  pattern: (?i)%0d|%0a|\r|\n|%1b|%00|\x00
+  pattern: (?i)%0d|%0a|\\r|\\n|%1b|%00|\\x00
   action: DIVERT
   description: Unknown control characters in a field
