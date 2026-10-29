@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { ATTACKS } from "./attacks";
+import { MALWARE, OWASP_ATTACKS, type Attack } from "./attacks";
 import {
   OWASP_2025,
   ON_SLIDE,
@@ -13,34 +13,53 @@ import {
 } from "./types";
 
 const FEED_MAX = 100;
-// Where the simulator buttons send attacks. Set only on the laptop (VITE_ATTACK_BASE); the homelab build leaves it
+// Where the simulator sends attacks. Set only on the laptop (VITE_ATTACK_BASE); the homelab build leaves it
 // unset, so visitors to graph.jrushvj.dev cannot fire attacks from the public dashboard.
 const ATTACK_BASE: string | undefined = import.meta.env.VITE_ATTACK_BASE || undefined;
+// the dashboard on graph.jrushvj.dev (slides and honeypot console links); override with VITE_DASHBOARD_BASE
+const DASHBOARD_BASE: string = import.meta.env.VITE_DASHBOARD_BASE || "https://graph.jrushvj.dev";
+const bytesOf = (b64: string) => Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
+// the simulator's category buttons map to these paths in the corpus (SQL = search, prompt = chat, log = memo)
+const CATEGORY_PATH: Record<"SQL Injection" | "Prompt Injection" | "Log Injection", string> = {
+  "SQL Injection": "/search",
+  "Prompt Injection": "/support/chat",
+  "Log Injection": "/memo",
+};
+const MALWARE_CARDS = [
+  ["EICAR", "eicar"],
+  ["AMTSO Security Feature Checks", "script"],
+  ["EMBER malware dataset", "exe"],
+  ["CICMalDroid 2020", "apk"],
+] as const;
 
-function fireAttacks(kind: keyof typeof ATTACKS) {
-  if (!ATTACK_BASE) return;
-  // one request every 400 ms, so each shows up as its own row on the public dashboard
-  ATTACKS[kind].forEach((a, i) =>
-    setTimeout(() => {
-      fetch(ATTACK_BASE + a.path, {
-        method: a.method,
-        mode: "no-cors", // send only: the verdict is read on graph.jrushvj.dev, not here
-        headers: a.body ? { "Content-Type": "application/x-www-form-urlencoded" } : {},
-        body: a.body,
-      }).catch(() => {});
-    }, i * 400),
-  );
+// Sends one request per item, 400 ms apart, and reports how many reached the gateway.
+function sendAll(list: Attack[], name: string, report: (msg: string) => void) {
+  if (!ATTACK_BASE) {
+    report("Attacks are sent from the laptop only: set VITE_ATTACK_BASE, then restart npm run dev.");
+    return;
+  }
+  const base = ATTACK_BASE;
+  report(`Sending ${list.length} request(s) for ${name} to ${base} …`);
+  const sends = list.map((a, i) => new Promise<boolean>((resolve) => setTimeout(() => {
+    // no-cors: the browser only sends. The verdict is read on graph.jrushvj.dev, not here.
+    const init: RequestInit = { method: a.method, mode: "no-cors" };
+    if (a.zip) {
+      init.body = bytesOf(MALWARE[a.zip].zipB64);
+      init.headers = { "Content-Type": "text/plain" };
+    } else if (a.body !== undefined) {
+      init.body = a.body;
+      init.headers = { "Content-Type": "text/plain" };
+    }
+    fetch(base + a.path, init).then(() => resolve(true), () => resolve(false));
+  }, i * 400)));
+  Promise.all(sends).then((results) => {
+    const ok = results.filter(Boolean).length;
+    report(ok === results.length
+      ? `${name}: ${ok} request(s) sent. Watch graph.jrushvj.dev.`
+      : `${name}: ${ok} of ${results.length} reached ${base}; the rest failed (check the tunnel).`);
+  });
 }
 
-const SCENARIO_STEPS = [
-  { key: "normal", label: "Normal traffic" },
-  { key: "rule", label: "Rule packs" },
-  { key: "access", label: "Access + config" },
-  { key: "login", label: "Login burst" },
-  { key: "zero-day", label: "Zero-day moment" },
-  { key: "error", label: "Error handling" },
-  { key: "wrap-up", label: "Wrap-up" },
-] as const;
 const VERDICT_STYLE: Record<Verdict, string> = {
   SAFE: "border-emerald-500 bg-emerald-500/10",
   DIVERT: "border-amber-400 bg-amber-400/10",
@@ -65,9 +84,7 @@ export default function App() {
   const [timers, setTimers] = useState<Timer[]>([]);
   const [live, setLive] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [scenarioRunId, setScenarioRunId] = useState<string | null>(null);
-  const [scenarioStep, setScenarioStep] = useState(-1);
-  const [scenarioRunning, setScenarioRunning] = useState(false);
+  const [status, setStatus] = useState<string | null>(null);
   const [selectedAttack, setSelectedAttack] = useState<"SQL Injection" | "Prompt Injection" | "Log Injection" | null>(null);
 
   useEffect(() => {
@@ -122,33 +139,6 @@ export default function App() {
     };
   }, []);
 
-  useEffect(() => {
-    if (!scenarioRunning) return;
-    let closed = false;
-    const refreshScenario = async () => {
-      try {
-        const recent = await getJson<Event[]>(`/api/events?limit=${FEED_MAX}`);
-        const completed = recent.reduce((highest, event) => {
-          const step = event.scenario_step?.toLowerCase() ?? "";
-          const index = SCENARIO_STEPS.findIndex(({ key, label }) => step.includes(key) || step.includes(label.toLowerCase()));
-          return Math.max(highest, index);
-        }, -1);
-        if (closed || completed < 0) return;
-        const nextStep = Math.min(completed + 1, SCENARIO_STEPS.length);
-        setScenarioStep(nextStep);
-        if (nextStep === SCENARIO_STEPS.length) setScenarioRunning(false);
-      } catch (e) {
-        if (!closed) setError(e instanceof Error ? e.message : "Unable to read scenario progress");
-      }
-    };
-    refreshScenario();
-    const progressRefresh = window.setInterval(refreshScenario, 1000);
-    return () => {
-      closed = true;
-      window.clearInterval(progressRefresh);
-    };
-  }, [scenarioRunning]);
-
   const toggle = async (rule: Rule) => {
     const r = await fetch(`/api/rules/${encodeURIComponent(rule.id)}`, {
       method: "PATCH",
@@ -159,31 +149,8 @@ export default function App() {
     // the analyst pushes the updated rule over /ws/live
   };
 
-  const runScenario = async () => {
-    setError(null);
-    setScenarioRunning(true);
-    setScenarioRunId(null);
-    setScenarioStep(0);
-    try {
-      const response = await fetch("/api/scenario/run", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ scenario: "full" }),
-      });
-      if (!response.ok) throw new Error(`/api/scenario/run → ${response.status}`);
-      const result = (await response.json()) as { run_id: string };
-      setScenarioRunId(result.run_id);
-    } catch (e) {
-      setScenarioRunning(false);
-      setError(e instanceof Error ? e.message : "Unable to start scenario");
-    }
-  };
-
   const visibleEvents = selectedAttack
-    ? events.filter((event) => {
-        if (selectedAttack === "Log Injection") return event.owasp === "A09" || event.request.path.includes("memo");
-        return event.owasp === "A05" || event.request.query.toLowerCase().includes(selectedAttack.split(" ")[0].toLowerCase());
-      })
+    ? events.filter((event) => event.request.path.includes(CATEGORY_PATH[selectedAttack]))
     : events;
 
   return (
@@ -196,8 +163,8 @@ export default function App() {
         </div>
         <div className="header-actions">
           <span className={`live-pill ${live ? "is-live" : ""}`}>{live ? "● LIVE" : "○ CONNECTING"}</span>
-          <a href="/slides/" className="ui-button">Slides</a>
-          <a href="/honeypot/" className="ui-button">Honeypot</a>
+          <a href={`${DASHBOARD_BASE}/slides/`} className="ui-button">Slides</a>
+          <a href={`${DASHBOARD_BASE}/honeypot/`} className="ui-button">Honeypot console</a>
         </div>
       </header>
 
@@ -211,7 +178,7 @@ export default function App() {
               type="button"
               className={`ui-button feature-box ${selectedAttack === attack ? "is-selected" : ""}`}
               onClick={() => {
-                if (selectedAttack !== attack) fireAttacks(attack);
+                if (selectedAttack !== attack) sendAll(OWASP_ATTACKS.A05.filter((a) => a.path.includes(CATEGORY_PATH[attack])), attack, setStatus);
                 setSelectedAttack(selectedAttack === attack ? null : attack);
               }}
             >
@@ -229,17 +196,17 @@ export default function App() {
               <p className="eyebrow">OWASP security coverage</p>
               <h2>OWASP Top 10:2025</h2>
             </div>
-            <button type="button" className="ui-button run-button" onClick={runScenario}>
-              {scenarioRunning ? "Restart Scenario" : "Run Scenario"}
-            </button>
           </div>
           <div className="owasp-center-grid">
-            {(Object.keys(OWASP_2025) as OwaspId[]).map((id) => <OwaspTile key={id} id={id} counts={stats?.owasp[id]} />)}
+            {(Object.keys(OWASP_2025) as OwaspId[]).map((id) => (
+              <OwaspTile key={id} id={id} counts={stats?.owasp[id]} onFire={(oid) => sendAll(OWASP_ATTACKS[oid] ?? [], `${oid} ${OWASP_2025[oid]}`, setStatus)} />
+            ))}
           </div>
           <div className="evidence-heading">
             <span>{selectedAttack ?? "All traffic"} · live evidence</span>
             <span>{visibleEvents.length} events</span>
           </div>
+          {status && <p className="text-sm text-slate-300" role="status">{status}</p>}
           <div className="verdict-strip">
             {(["SAFE", "DIVERT", "DENY"] as Verdict[]).map((verdict) => (
               <div key={verdict} className={`verdict-card ${verdict.toLowerCase()}`}>
@@ -249,28 +216,21 @@ export default function App() {
             ))}
           </div>
           <ol className="event-feed">
-            {visibleEvents.length === 0 && <li className="empty-feed">Waiting for traffic… Select a check or run the scenario.</li>}
+            {visibleEvents.length === 0 && <li className="empty-feed">Waiting for traffic… Click a check, an OWASP tile or a malware card.</li>}
             {visibleEvents.map((event) => <FeedRow key={event.id} event={event} />)}
           </ol>
-          <div className="scenario-progress">
-            <div className="progress-heading">
-              <span>{scenarioRunId ? `Run ${scenarioRunId}` : "Seven-step judge-facing flow"}</span>
-              <span>{scenarioStep < 0 ? "Ready" : `${Math.min(scenarioStep, SCENARIO_STEPS.length)}/${SCENARIO_STEPS.length}`}</span>
-            </div>
-            <ol>
-              {SCENARIO_STEPS.map((step, index) => (
-                <li key={step.key} className={scenarioStep > index ? "complete" : scenarioRunning && scenarioStep === index ? "active" : ""}>
-                  <span>{scenarioStep > index ? "✓" : index + 1}</span>{step.label}
-                </li>
-              ))}
-            </ol>
-          </div>
         </section>
 
         <aside className="info-panel">
           <div className="info-copy">
-            {["EICAR", "AMTSO Security Feature Checks", "EMBER malware dataset", "CICMalDroid 2020"].map((item) => (
-              <button key={item} type="button" className={`ui-button feature-box eicar-card ${item === "EICAR" ? "eicar-title" : ""}`}>
+            {MALWARE_CARDS.map(([item, key]) => (
+              <button
+                key={item}
+                type="button"
+                title={MALWARE[key].label}
+                className={`ui-button feature-box eicar-card ${item === "EICAR" ? "eicar-title" : ""}`}
+                onClick={() => sendAll([{ id: key, label: MALWARE[key].label, method: "POST", path: "/api/statements/upload", zip: key }], item, setStatus)}
+              >
                 {item}
               </button>
             ))}
@@ -325,18 +285,18 @@ function FeedRow({ event: e }: { event: Event }) {
   );
 }
 
-function OwaspTile({ id, counts }: { id: OwaspId; counts?: { DIVERT: number; DENY: number } }) {
+function OwaspTile({ id, counts, onFire }: { id: OwaspId; counts?: { DIVERT: number; DENY: number }; onFire: (id: OwaspId) => void }) {
   const hits = (counts?.DIVERT ?? 0) + (counts?.DENY ?? 0);
   const slide = ON_SLIDE.includes(id);
   const lit = hits > 0 ? "border-red-500 bg-red-500/15" : "border-slate-700 bg-slate-800/50";
   return (
-    <div className={`rounded-md border p-2 ${lit}`} title={OWASP_2025[id]}>
+    <button type="button" onClick={() => onFire(id)} title={`Send the ${OWASP_2025[id]} attacks`} className={`rounded-md border p-2 text-left ${lit}`}>
       <div className="flex items-baseline justify-between">
         <span className="text-lg font-bold">{id}</span>
         <span className="text-2xl font-bold tabular-nums">{hits}</span>
       </div>
       <div className="text-xs leading-tight text-slate-300">{OWASP_2025[id]}</div>
       {slide && <div className="mt-1 text-xs font-semibold uppercase text-sky-300">on slide</div>}
-    </div>
+    </button>
   );
 }

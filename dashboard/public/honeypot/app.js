@@ -85,6 +85,9 @@ const Flow = (() => {
   const heat = {};
   const counts = { app: "", hp: "", deny: "", rules: "" };
   let nextStart = 0;
+  // the last gateway verdict and risk score, shown next to the gateway for 5 s
+  let riskChip = null;
+  const RISK_WORD = { request: "SAFE", routed_to_honeypot: "DIVERT", blocked: "DENY", canary_hit: "DENY", attack_stopped: "DENY", learned_rule_caught: "DENY" };
 
   function layout() {
     const r = stage.getBoundingClientRect();
@@ -162,6 +165,8 @@ const Flow = (() => {
   const stamp = (node, text, color) => stamps.push({ node, text, color, t0: performance.now() });
 
   function event(ev) {
+    const word = RISK_WORD[ev.action];
+    if (word) riskChip = { text: `risk ${ev.risk ?? 0} · ${word}`, color: word === "SAFE" ? C.ok : word === "DIVERT" ? C.trap : C.bad, t0: performance.now() };
     const cat = (ev.extra && ev.extra.category) ? String(ev.extra.category).replace(/_/g, " ") : "";
     const sandbox = String(ev.detail || "").startsWith("sandbox");
     switch (ev.action) {
@@ -337,6 +342,23 @@ const Flow = (() => {
       ctx.fillStyle = t.color; ctx.textAlign = "center"; ctx.textBaseline = "middle";
       ctx.fillText(t.text, x + tw / 2, y + th / 2 + 0.5);
       ctx.restore();
+    }
+    // risk chip above the gateway (SAFE / DIVERT / DENY with its risk score), for 5 s
+    if (riskChip) {
+      const age = (now - riskChip.t0) / 5000;
+      if (age >= 1) riskChip = null;
+      else {
+        const n = N.gw;
+        ctx.save(); ctx.globalAlpha = age > 0.8 ? (1 - age) / 0.2 : 1;
+        ctx.font = `600 ${Math.round(12 * Math.max(S, 0.85))}px ${MONO}`;
+        const tw = ctx.measureText(riskChip.text).width + 18, th = 24;
+        const x = Math.max(4, Math.min(W - tw - 4, n.x - tw / 2)), y = n.y - n.h / 2 - th - 10;
+        roundRect(x, y, tw, th, 6); ctx.fillStyle = C.surface; ctx.fill();
+        ctx.strokeStyle = riskChip.color; ctx.lineWidth = 1.4; ctx.stroke();
+        ctx.fillStyle = riskChip.color; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+        ctx.fillText(riskChip.text, x + tw / 2, y + th / 2 + 0.5);
+        ctx.restore();
+      }
     }
     // stamps (BANNED / 403)
     for (let i = stamps.length - 1; i >= 0; i--) {
