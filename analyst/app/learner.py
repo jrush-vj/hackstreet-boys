@@ -55,8 +55,9 @@ def _texts(target: str, r: dict) -> list[str]:
     """Same targets the gateway's RuleEngine uses (gateway/app/engine.py)."""
     headers = [f"{k}: {v}" for k, v in r["headers"].items()]
     return {
-        "path": [r["path"]], "query": [r["query"], unquote_plus(r["query"])], "body": [r["body"]],
-        "header": headers, "any": [r["path"], r["query"], unquote_plus(r["query"]), r["body"], *headers],
+        "path": [r["path"]], "query": [r["query"], unquote_plus(r["query"])],
+        "body": [r["body"], unquote_plus(r["body"])],
+        "header": headers, "any": [r["path"], r["query"], unquote_plus(r["query"]), r["body"], unquote_plus(r["body"]), *headers],
     }[target]
 
 

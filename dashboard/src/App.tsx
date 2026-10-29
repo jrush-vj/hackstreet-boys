@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { ATTACKS } from "./attacks";
 import {
   OWASP_2025,
   ON_SLIDE,
@@ -12,6 +13,25 @@ import {
 } from "./types";
 
 const FEED_MAX = 100;
+// Where the simulator buttons send attacks. Set only on the laptop (VITE_ATTACK_BASE); the homelab build leaves it
+// unset, so visitors to graph.jrushvj.dev cannot fire attacks from the public dashboard.
+const ATTACK_BASE: string | undefined = import.meta.env.VITE_ATTACK_BASE || undefined;
+
+function fireAttacks(kind: keyof typeof ATTACKS) {
+  if (!ATTACK_BASE) return;
+  // one request every 400 ms, so each shows up as its own row on the public dashboard
+  ATTACKS[kind].forEach((a, i) =>
+    setTimeout(() => {
+      fetch(ATTACK_BASE + a.path, {
+        method: a.method,
+        mode: "no-cors", // send only: the verdict is read on graph.jrushvj.dev, not here
+        headers: a.body ? { "Content-Type": "application/x-www-form-urlencoded" } : {},
+        body: a.body,
+      }).catch(() => {});
+    }, i * 400),
+  );
+}
+
 const SCENARIO_STEPS = [
   { key: "normal", label: "Normal traffic" },
   { key: "rule", label: "Rule packs" },
@@ -190,7 +210,10 @@ export default function App() {
               key={attack}
               type="button"
               className={`ui-button feature-box ${selectedAttack === attack ? "is-selected" : ""}`}
-              onClick={() => setSelectedAttack(selectedAttack === attack ? null : attack)}
+              onClick={() => {
+                if (selectedAttack !== attack) fireAttacks(attack);
+                setSelectedAttack(selectedAttack === attack ? null : attack);
+              }}
             >
               {attack}
             </button>

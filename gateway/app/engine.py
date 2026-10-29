@@ -102,7 +102,7 @@ class RuleEngine:
         targets = {
             "path": (context.path,),
             "query": (context.query, unquote_plus(context.query)),
-            "body": (context.body,),
+            "body": (context.body, unquote_plus(context.body)),  # form posts are url-encoded: match decoded too
             "header": tuple(
                 f"{name}: {value}" for name, value in context.headers.items()
             ),
@@ -111,6 +111,7 @@ class RuleEngine:
                 context.query,
                 unquote_plus(context.query),
                 context.body,
+                unquote_plus(context.body),
                 *(f"{name}: {value}" for name, value in context.headers.items()),
             ),
         }

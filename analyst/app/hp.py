@@ -290,6 +290,28 @@ async def hp_contrast(request: Request, limit: int = 8):
     return out
 
 
+@router.get("/api/hp/sandbox")
+async def hp_sandbox(request: Request, limit: int = 30):
+    """Uploads scanned by the sandbox and requests replayed in it, newest first."""
+    evs = await _recent(request.app.state.pool, 2000)
+    corr = _ip_by_corr(evs)
+    rows = []
+    for e in evs:
+        d = e.get("details") or {}
+        if e["source"] == "gateway" and d.get("file_scan"):
+            fs = d["file_scan"]
+            rows.append({"kind": "upload", "verdict": e.get("verdict") or fs["verdict"], "ts": e["ts"],
+                         "path": e["request"]["path"], "attacker_ip": e["request"]["ip"], "score": fs["score"],
+                         "components": fs.get("components", {}), "indicators": fs.get("indicators", []),
+                         "rule_id": e.get("rule_id") or fs.get("rule_id")})
+        elif e["source"] == "sandbox":
+            rows.append({"kind": "replay", "verdict": "REPLAYED", "ts": e["ts"], "path": e["request"]["path"],
+                         "attacker_ip": corr.get(e["correlation_id"], "?"), "score": 0.0,
+                         "components": {"http_status": d.get("status"), "latency_ms": d.get("latency_ms")},
+                         "indicators": [], "rule_id": None})
+    return rows[: max(1, min(limit, 200))]
+
+
 @router.get("/api/hp/analyses")
 async def hp_analyses(request: Request, limit: int = 40):
     rows = await request.app.state.pool.fetch(

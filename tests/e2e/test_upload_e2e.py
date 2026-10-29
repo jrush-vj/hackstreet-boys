@@ -68,3 +68,14 @@ def test_zero_day_upload_reaches_honeypot_and_sandbox():
 def test_clean_archive_is_forwarded_to_the_bank():
     r = upload(zipped({"march.txt": b"Opening balance 100.00\n" * 5}))
     assert r.headers["X-Verdict"] == "SAFE"  # the bank has no upload route yet: 404 is the bank answering
+
+
+def test_sandbox_panel_lists_the_scanned_upload():
+    upload(zipped({"panel.ps1": b"Write-Host panel"}))
+    end = time.time() + 10
+    rows = []
+    while time.time() < end and not rows:
+        rows = [r for r in httpx.get("http://localhost:3000/api/hp/sandbox", params={"limit": 30}).json()
+                if r["kind"] == "upload" and "panel.ps1" in r["indicators"]]
+        time.sleep(0.3)
+    assert rows and rows[0]["verdict"] == "DIVERT" and rows[0]["components"]["dangerous_content"] == 0.75

@@ -909,7 +909,24 @@ function scheduleRefresh(contrast) {
     if (_wantContrast) { refreshContrast(); _wantContrast = false; }
   }, 400);
 }
-function refreshAll() { refreshStats(); refreshSessions(); refreshMemory(); refreshLLM(); }
+function refreshAll() { refreshStats(); refreshSessions(); refreshMemory(); refreshLLM(); refreshSandbox(); }
+
+/* ================================================================ sandbox */
+async function refreshSandbox() {
+  try {
+    const rows = await api("/api/sandbox?limit=30");
+    $("sandbox-empty").classList.toggle("hidden", rows.length > 0);
+    $("sandbox-body").innerHTML = rows.map(sandboxRow).join("");
+  } catch (e) { /* ignore */ }
+}
+function sandboxRow(r) {
+  const cls = r.verdict === "DENY" ? "bad" : (r.verdict === "DIVERT" || r.kind === "replay") ? "trap" : "ok";
+  const parts = Object.entries(r.components || {}).filter(([, v]) => v !== null).map(([k, v]) => `${esc(k)} ${esc(v)}`).join(" · ");
+  const entries = (r.indicators || []).length ? ` · entries: ${esc(r.indicators.join(", "))}` : "";
+  return `<li class="ev ${cls}"><div><div class="ev-top"><span>${esc(r.kind)} · ${esc(r.verdict)}</span><time>${time(r.ts)}</time></div>
+    <div class="pl">${esc(r.path)}</div>
+    <div class="meta">${esc(r.attacker_ip)} · score ${esc(r.score)}${parts ? " · " + parts : ""}${entries}${r.rule_id ? " · " + esc(r.rule_id) : ""}</div></div></li>`;
+}
 
 /* ================================================================ boot */
 async function loadAnalyses() {
@@ -928,4 +945,6 @@ async function loadAnalyses() {
   refreshContrast();
   connectWS();
   setInterval(refreshLLM, 5000);
+  refreshSandbox();
+  setInterval(refreshSandbox, 5000);
 })();
