@@ -80,6 +80,11 @@
       <div id="report-card" class="report hidden"></div>
       <ol id="analyst-stream" class="notes" aria-live="polite"></ol>
     </div>
+    <div class="sandbox">
+      <h3>Sandbox <span class="muted">uploads and replays</span></h3>
+      <ul id="sandbox-body" class="sandbox-list"></ul>
+      <p class="empty" id="sandbox-empty">No uploads or replays yet.</p>
+    </div>
   </section>
 
   <!-- Live event feed -->
@@ -124,15 +129,6 @@
       <summary>Built-in rules <span class="muted" id="builtin-count"></span></summary>
       <ul class="rules" id="builtin-body"></ul>
     </details>
-  </section>
-  <!-- Sandbox: uploads scanned and requests replayed -->
-  <section class="panel sandbox" aria-labelledby="h-sb">
-    <div class="panel-head">
-      <h2 id="h-sb">Sandbox</h2>
-      <span class="count">uploads and replays</span>
-    </div>
-    <ul id="sandbox-body" class="feed-list"></ul>
-    <p class="empty" id="sandbox-empty">No uploads or replays yet.</p>
   </section>
 </main>
 
