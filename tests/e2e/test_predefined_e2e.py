@@ -1,6 +1,5 @@
-"""Predefined groups + unknown variants, end to end through the gateway.
-Known SQL/prompt/log patterns are DENYed by their group. An unknown SQL variant is DIVERTed (honeypot + sandbox
-study it), the analyst learns a rule, and the next variant is DENYed by that learned rule."""
+"""Predefined groups, end to end through the gateway. On first run every SQL/prompt/log pattern is unknown and
+DIVERTs (honeypot + sandbox study it); the analyst learns a rule, and the next variant is DENYed by that rule."""
 
 import time
 
@@ -11,11 +10,11 @@ from test_g1 import ANALYST, GATEWAY, corpus, send
 ADMIN = {"X-Admin-Token": "dev-admin-token"}
 
 
-def test_known_groups_deny_with_their_rule_group():
-    for name, prefix in [("c-0067", "sqli-"), ("c-0083", "prompt-"), ("c-0069", "sqli-")]:
+def test_predefined_groups_divert_on_first_run():
+    for name in ("c-0067", "c-0083", "c-0069"):
         item = next(c for c in corpus() if c["id"] == name)
         r = send(item)
-        assert r.status_code == 403 and r.json()["rule_id"].startswith(prefix), (name, r.text)
+        assert r.headers["X-Verdict"] == "DIVERT", (name, r.text[:150])
     rules = {r["id"]: r for r in httpx.get(f"{ANALYST}/api/hp/rules").json()}
     assert rules["sqli-012"]["category"].startswith("SQL injection")
     assert rules["prompt-011"]["category"].startswith("Prompt injection")

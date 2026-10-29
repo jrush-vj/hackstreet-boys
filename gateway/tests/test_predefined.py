@@ -1,5 +1,5 @@
-"""Predefined rule groups (SQL, PROMPT, LOG): every rule has a corpus match, the labels hold, and the
-unknown-variant rules (…-1xx, DIVERT) send traffic to the honeypot without DENYing it."""
+"""Predefined rule groups (SQL, PROMPT, LOG): every rule has a corpus match, the labels hold, and on first run
+every match DIVERTs to the honeypot without DENYing it (DENY comes from learned rules)."""
 
 import asyncio
 import json
@@ -65,8 +65,9 @@ def test_unknown_variants_divert_and_never_deny():
     unknown = [i for i in load_corpus() if i["expected_verdict"] == "DIVERT" and i["id"] >= NEW_FROM]
     assert len(unknown) >= 7
     for item in unknown:
+        # first run is always DIVERT (unknown); the learner turns repeats into DENY rules
         action, rid = verdict_for(engine, item)
-        assert action == "DIVERT" and rid and rid.endswith(("100",)), item["id"]
+        assert action == "DIVERT" and rid and rid.split("-")[0] in GROUPS, item["id"]
 
 
 def test_predefined_rules_are_valid_regexes_within_limits():

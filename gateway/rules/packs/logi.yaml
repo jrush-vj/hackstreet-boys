@@ -5,70 +5,70 @@
   match_type: regex
   target: any
   pattern: (?i)(?:%0d|%0a)(?:%0d|%0a)
-  action: DENY
+  action: DIVERT
   description: 'Double CRLF: starts a forged log record'
 - id: logi-002
   owasp: A05
   match_type: regex
   target: any
   pattern: (?i)(?:%0d|%0a)(?:info|warn|error|debug)\b
-  action: DENY
+  action: DIVERT
   description: Newline then a log level
 - id: logi-003
   owasp: A05
   match_type: regex
   target: any
   pattern: '(?i)(?:%0d|%0a)(?:set-cookie|location|x-[a-z0-9-]+)\s*:'
-  action: DENY
+  action: DIVERT
   description: CRLF header injection
 - id: logi-004
   owasp: A05
   match_type: regex
   target: any
   pattern: '(?:\\r|\\n)(?:INFO|WARN|ERROR|DEBUG)\b'
-  action: DENY
+  action: DIVERT
   description: Escaped newline then a log level (JSON body)
 - id: logi-005
   owasp: A05
   match_type: regex
   target: any
   pattern: (?i)%1b%5b[0-9;]*m
-  action: DENY
+  action: DIVERT
   description: ANSI escape sequence (terminal spoofing)
 - id: logi-006
   owasp: A05
   match_type: regex
   target: any
   pattern: (?i)(?:%0d%0a|%0a|\\r\\n|\\n)\s*\d{4}-\d{2}-\d{2}
-  action: DENY
+  action: DIVERT
   description: 'Newline then a timestamp: a forged log line'
 - id: logi-007
   owasp: A05
   match_type: regex
   target: any
   pattern: (?i)(?:%0d|%0a|\\r|\\n)\s*(?:user|action|level|status)=
-  action: DENY
+  action: DIVERT
   description: Newline then a forged key=value log field
 - id: logi-008
   owasp: A05
   match_type: regex
   target: any
   pattern: (?i)(?:%0d|%0a|\\r|\\n)\s*\[?(?:info|warn|warning|error|critical)\]?\s*[:\]]
-  action: DENY
+  action: DIVERT
   description: Newline then a bracketed level
 - id: logi-009
   owasp: A05
   match_type: regex
   target: any
   pattern: (?i)%00|\\x00
-  action: DENY
+  action: DIVERT
   description: NUL byte truncates the log line
 - id: logi-010
   owasp: A05
   match_type: regex
   target: any
   pattern: '(?i)\$\{(?:jndi|env|sys|lower|upper):'
-  action: DENY
+  action: DIVERT
   description: Log4j-style lookup string in a logged field
 - id: logi-100
   owasp: A05

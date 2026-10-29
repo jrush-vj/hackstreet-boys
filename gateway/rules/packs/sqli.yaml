@@ -6,84 +6,84 @@
   match_type: regex
   target: any
   pattern: (?i)(?:'|%27)\s*(?:or|and)\s+(?:(?:'|%27)?\d+(?:'|%27)?\s*=\s*(?:'|%27)?\d+(?:'|%27)?|\d+\s*=\s*\d+)
-  action: DENY
+  action: DIVERT
   description: SQL tautology on a number (1=1)
 - id: sqli-002
   owasp: A05
   match_type: regex
   target: any
   pattern: (?i)\bunion(?:%20|\+|\s)+select\b
-  action: DENY
+  action: DIVERT
   description: UNION-based query
 - id: sqli-003
   owasp: A05
   match_type: regex
   target: any
   pattern: (?i)(?:--|%23|#)\s*$
-  action: DENY
+  action: DIVERT
   description: SQL comment marker at the end of the input
 - id: sqli-004
   owasp: A05
   match_type: regex
   target: any
   pattern: (?i)(?:;|%3b)(?:%20|\+|\s)*(?:select|insert|update|delete|drop)\b
-  action: DENY
+  action: DIVERT
   description: Stacked SQL statement
 - id: sqli-005
   owasp: A05
   match_type: regex
   target: any
   pattern: (?i)\b(?:sleep|benchmark|extractvalue|updatexml)\s*\(
-  action: DENY
+  action: DIVERT
   description: Time- or error-based SQL function
 - id: sqli-006
   owasp: A05
   match_type: regex
   target: any
   pattern: (?i)\bunion\b(?:\s|%20|\+|/\*.*?\*/)+(?:all\s+)?select\b
-  action: DENY
+  action: DIVERT
   description: UNION with comment or ALL obfuscation
 - id: sqli-007
   owasp: A05
   match_type: regex
   target: any
   pattern: (?i)\b(?:information_schema|sqlite_master|pg_catalog|mysql\.user)\b
-  action: DENY
+  action: DIVERT
   description: Schema enumeration
 - id: sqli-008
   owasp: A05
   match_type: regex
   target: any
   pattern: (?i)(?:;|%3b)\s*(?:shutdown|exec|xp_cmdshell|waitfor)\b
-  action: DENY
+  action: DIVERT
   description: Stacked dangerous statement
 - id: sqli-009
   owasp: A05
   match_type: regex
   target: any
   pattern: (?i)/\*!\d*|\*/\s*(?:or|and|union|select)\b
-  action: DENY
+  action: DIVERT
   description: MySQL inline comment obfuscation
 - id: sqli-010
   owasp: A05
   match_type: regex
   target: any
   pattern: (?i)\b(?:load_file|into\s+(?:out|dump)file)\b
-  action: DENY
+  action: DIVERT
   description: File read/write via SQL
 - id: sqli-011
   owasp: A05
   match_type: regex
   target: any
   pattern: (?i)\bwaitfor\s+delay\b
-  action: DENY
+  action: DIVERT
   description: Time-based SQL Server injection
 - id: sqli-012
   owasp: A05
   match_type: regex
   target: any
   pattern: (?i)'\s*(?:or|and)\s+'?\w+'?\s*(?:=|like)\s*'?\w+
-  action: DENY
+  action: DIVERT
   description: Quoted tautology on a string ('a'='a')
 - id: sqli-100
   owasp: A05

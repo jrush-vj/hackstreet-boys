@@ -42,16 +42,14 @@ def test_safe_requests_reach_the_real_bank():
         assert r.status_code < 400, f"{item['id']}: bank returned {r.status_code}: {r.text[:150]}"
 
 
-def test_pack_rules_deny_with_a05():
-    hit_packs = set()
-    for item in [c for c in by_verdict("DENY") if c["owasp"] == "A05"]:
+def test_pack_rules_divert_a05_on_first_run():
+    # unknown on first run: the first A05 item DIVERTs (honeypot + sandbox). Later items in this loop may already
+    # match a rule the learner wrote from the earlier ones, so those can be DENY: that is the intended behaviour.
+    items = [c for c in by_verdict("DIVERT") if c["owasp"] == "A05"]
+    for n, item in enumerate(items):
         r = send(item)
-        assert r.status_code == 403, item["id"]
-        body = r.json()
-        assert body["verdict"] == "DENY" and body["owasp"] == "A05", item["id"]
-        assert body["request_id"] == r.headers["X-Request-Id"], item["id"]
-        hit_packs.update(p for p in PACKS if body["rule_id"].startswith(p))
-    assert hit_packs == set(PACKS), f"packs never hit: {set(PACKS) - hit_packs}"
+        expected = {"DIVERT"} if n == 0 else {"DIVERT", "DENY"}
+        assert r.headers["X-Verdict"] in expected, item["id"]
 
 
 @pytest.mark.parametrize("verdict", ["SAFE", "DENY"])
@@ -71,8 +69,9 @@ def test_requests_are_persisted(verdict):
 
 def test_stats_count_verdicts():
     send(by_verdict("SAFE")[0])
-    send([c for c in by_verdict("DENY") if c["owasp"] == "A05"][0])
+    send([c for c in by_verdict("DENY") if c["owasp"] == "A01"][0])
+    send([c for c in by_verdict("DIVERT") if c["owasp"] == "A05"][0])
     time.sleep(1.5)  # events reach the analyst
     stats = httpx.get(f"{ANALYST}/api/stats").json()
-    assert stats["totals"]["SAFE"] > 0 and stats["totals"]["DENY"] > 0
-    assert stats["owasp"]["A05"]["DENY"] > 0
+    assert stats["totals"]["SAFE"] > 0 and stats["totals"]["DENY"] > 0 and stats["totals"]["DIVERT"] > 0
+    assert stats["owasp"]["A05"]["DIVERT"] > 0
