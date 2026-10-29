@@ -1,11 +1,7 @@
-# Build context is the repo root (see docker-compose.yml).
-FROM node:20-alpine AS build
-WORKDIR /app
-COPY dashboard/package.json dashboard/package-lock.json ./
-RUN npm ci --no-audit --no-fund
-COPY dashboard/ ./
-RUN npm run build
-
+# Public image: the sentinel-style monitoring console is the root page (graph.jrushvj.dev), also at /honeypot/.
+# The React app is the attack simulator, which runs on the laptop only (dashboard/README.md), so it is not built here.
 FROM nginx:1.27-alpine
 COPY dashboard/nginx.conf /etc/nginx/conf.d/default.conf
-COPY --from=build /app/dist /usr/share/nginx/html
+COPY dashboard/public/honeypot/ /usr/share/nginx/html/
+COPY dashboard/public/honeypot/ /usr/share/nginx/html/honeypot/
+COPY dashboard/public/slides/ /usr/share/nginx/html/slides/
