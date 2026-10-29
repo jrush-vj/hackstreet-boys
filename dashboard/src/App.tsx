@@ -32,15 +32,21 @@ const MALWARE_CARDS = [
   ["CICMalDroid 2020", "apk"],
 ] as const;
 
-// Sends one request per item, 400 ms apart, and reports how many reached the gateway.
-function sendAll(list: Attack[], name: string, report: (msg: string) => void) {
+// One click sends at most this many attacks, one after another, 400 ms apart.
+const SENDS_PER_CLICK = 3;
+
+// Sends up to SENDS_PER_CLICK requests in sequence and reports how many reached the gateway.
+async function sendAll(list: Attack[], name: string, report: (msg: string) => void) {
   if (!ATTACK_BASE) {
     report("Attacks are sent from the laptop only: set VITE_ATTACK_BASE, then restart npm run dev.");
     return;
   }
   const base = ATTACK_BASE;
-  report(`Sending ${list.length} request(s) for ${name} to ${base} …`);
-  const sends = list.map((a, i) => new Promise<boolean>((resolve) => setTimeout(() => {
+  const batch = list.slice(0, SENDS_PER_CLICK);
+  report(`Sending ${batch.length} request(s) for ${name} to ${base} …`);
+  let ok = 0;
+  for (const [i, a] of batch.entries()) {
+    if (i > 0) await new Promise((resolve) => setTimeout(resolve, 400));
     // no-cors: the browser only sends. The verdict is read on graph.jrushvj.dev, not here.
     const init: RequestInit = { method: a.method, mode: "no-cors" };
     if (a.zip) {
@@ -50,14 +56,16 @@ function sendAll(list: Attack[], name: string, report: (msg: string) => void) {
       init.body = a.body;
       init.headers = { "Content-Type": "text/plain" };
     }
-    fetch(base + a.path, init).then(() => resolve(true), () => resolve(false));
-  }, i * 400)));
-  Promise.all(sends).then((results) => {
-    const ok = results.filter(Boolean).length;
-    report(ok === results.length
-      ? `${name}: ${ok} request(s) sent. Watch graph.jrushvj.dev.`
-      : `${name}: ${ok} of ${results.length} reached ${base}; the rest failed (check the tunnel).`);
-  });
+    try {
+      await fetch(base + a.path, init);
+      ok++;
+    } catch {
+      // counted as failed below
+    }
+  }
+  report(ok === batch.length
+    ? `${name}: ${ok} request(s) sent. Watch graph.jrushvj.dev.`
+    : `${name}: ${ok} of ${batch.length} reached ${base}; the rest failed (check the tunnel).`);
 }
 
 const VERDICT_STYLE: Record<Verdict, string> = {
@@ -159,7 +167,7 @@ export default function App() {
         <div>
           <p className="eyebrow">EICAR · Security Feature Checks</p>
           <h1>Secure Sphere</h1>
-          <p className="subtitle">Zero-day detection gateway · OWASP Top 10:2025</p>
+          <p className="subtitle">Zero-day detection gateway · 2025-26</p>
         </div>
         <div className="header-actions">
           <span className={`live-pill ${live ? "is-live" : ""}`}>{live ? "● LIVE" : "○ CONNECTING"}</span>
@@ -193,8 +201,8 @@ export default function App() {
         <section className="evidence-panel">
           <div className="panel-heading">
             <div>
-              <p className="eyebrow">OWASP security coverage</p>
-              <h2>OWASP Top 10:2025</h2>
+              <p className="eyebrow">2025-26 security coverage</p>
+              <h2>2025-26</h2>
             </div>
           </div>
           <div className="owasp-center-grid">
@@ -216,7 +224,7 @@ export default function App() {
             ))}
           </div>
           <ol className="event-feed">
-            {visibleEvents.length === 0 && <li className="empty-feed">Waiting for traffic… Click a check, an OWASP tile or a malware card.</li>}
+            {visibleEvents.length === 0 && <li className="empty-feed">Waiting for traffic… Click a check, a 2025-26 tile or a malware card.</li>}
             {visibleEvents.map((event) => <FeedRow key={event.id} event={event} />)}
           </ol>
         </section>
